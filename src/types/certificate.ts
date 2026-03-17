@@ -11,6 +11,7 @@ export interface CertificateData {
   title: string;
   recipientName: string;
   eventName: string;
+  completionText: string;
   description: string;
   leftLogo: string | null;
   rightLogo: string | null;
@@ -21,6 +22,12 @@ export interface CertificateData {
     fontFamily: string;
     fontSize: number;
     color: string;
+    titleColor?: string;
+    recipientColor?: string;
+    eventColor?: string;
+    completionTextColor?: string;
+    descriptionColor?: string;
+    idColor?: string;
     textAlign: 'left' | 'center' | 'right';
     spacing: number;
   };
@@ -32,6 +39,7 @@ export const DEFAULT_CERTIFICATE_DATA: CertificateData = {
   title: 'CERTIFICATE OF ACHIEVEMENT',
   recipientName: 'Recipient Name',
   eventName: 'Professional Development Seminar',
+  completionText: 'in recognition of successful completion of',
   description: 'In recognition of their outstanding performance and dedication to excellence shown during the completion of the program.',
   leftLogo: null,
   rightLogo: null,

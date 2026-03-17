@@ -125,6 +125,19 @@ const FileUploadBtn = ({
   </label>
 );
 
+const ColorPickerField = ({ label, value, defaultColor, onChange }: { label: string; value: string; defaultColor: string; onChange: (v: string) => void }) => (
+  <Field label={label}>
+    <div className="flex gap-3 items-center">
+      <input type="color" value={value || defaultColor}
+        onChange={e => onChange(e.target.value)}
+        className="w-10 h-10 rounded cursor-pointer border-none p-0 bg-transparent shrink-0 shadow-sm" />
+      <StyledInput value={value || ''}
+        onChange={e => onChange(e.target.value)}
+        placeholder={defaultColor} />
+    </div>
+  </Field>
+);
+
 const SectionDivider = ({ title }: { title: string }) => (
   <div className="flex items-center gap-3 my-2">
     <div className="flex-1 h-px bg-gray-100" />
@@ -438,6 +451,12 @@ export default function App() {
                     placeholder="Annual Leadership Summit" />
                 </Field>
 
+                <Field label="Completion Text">
+                  <StyledInput value={data.completionText || ''}
+                    onChange={e => set('completionText', e.target.value)}
+                    placeholder="in recognition of successful completion of" />
+                </Field>
+
                 <Field label="Certificate ID">
                   <StyledInput value={data.uniqueId ?? ''} onChange={e => set('uniqueId', e.target.value)}
                     placeholder="CERT-001" />
@@ -542,6 +561,14 @@ export default function App() {
                     <span className="text-xs text-gray-400">8</span>
                   </div>
                 </Field>
+
+                <SectionDivider title="Text Colors" />
+                <ColorPickerField label="Title Color" value={data.styles.titleColor || ''} defaultColor="#000000" onChange={v => setStyle('titleColor', v)} />
+                <ColorPickerField label="Recipient Name Color" value={data.styles.recipientColor || ''} defaultColor="#000000" onChange={v => setStyle('recipientColor', v)} />
+                <ColorPickerField label="Event Name Color" value={data.styles.eventColor || ''} defaultColor="#000000" onChange={v => setStyle('eventColor', v)} />
+                <ColorPickerField label="Completion Text Color" value={data.styles.completionTextColor || ''} defaultColor="#5a4a2a" onChange={v => setStyle('completionTextColor', v)} />
+                <ColorPickerField label="Description Color" value={data.styles.descriptionColor || ''} defaultColor="#000000" onChange={v => setStyle('descriptionColor', v)} />
+                <ColorPickerField label="ID Color" value={data.styles.idColor || ''} defaultColor="#000000" onChange={v => setStyle('idColor', v)} />
 
                 <SectionDivider title="QR Code" />
 
