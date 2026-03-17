@@ -1,0 +1,50 @@
+export type TemplateId = 'classic' | 'modern' | 'premium' | 'custom';
+
+export interface Signature {
+  id: string;
+  name: string;
+  designation: string;
+  image: string | null;
+}
+
+export interface CertificateData {
+  title: string;
+  recipientName: string;
+  eventName: string;
+  description: string;
+  leftLogo: string | null;
+  rightLogo: string | null;
+  signatures: Signature[];
+  templateId: TemplateId;
+  backgroundImage: string | null;
+  styles: {
+    fontFamily: string;
+    fontSize: number;
+    color: string;
+    textAlign: 'left' | 'center' | 'right';
+    spacing: number;
+  };
+  qrCodeValue?: string;
+  uniqueId?: string;
+}
+
+export const DEFAULT_CERTIFICATE_DATA: CertificateData = {
+  title: 'CERTIFICATE OF ACHIEVEMENT',
+  recipientName: 'Recipient Name',
+  eventName: 'Professional Development Seminar',
+  description: 'In recognition of their outstanding performance and dedication to excellence shown during the completion of the program.',
+  leftLogo: null,
+  rightLogo: null,
+  signatures: [
+    { id: '1', name: 'John Doe', designation: 'Director', image: null }
+  ],
+  templateId: 'classic',
+  backgroundImage: null,
+  styles: {
+    fontFamily: 'serif',
+    fontSize: 16,
+    color: '#000000',
+    textAlign: 'center',
+    spacing: 1,
+  }
+};
