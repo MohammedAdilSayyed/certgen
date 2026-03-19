@@ -34,6 +34,7 @@ export interface CertificateData {
   };
   qrCodeValue?: string;
   uniqueId?: string;
+  templateName?: string;
 }
 
 export const DEFAULT_CERTIFICATE_DATA: CertificateData = {

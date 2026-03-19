@@ -9,7 +9,7 @@ import { DEFAULT_CERTIFICATE_DATA } from '@/types/certificate';
 import type { CertificateData, Signature } from '@/types/certificate';
 import {
   Download, Plus, Trash2, Save, QrCode, FileUp,
-  GalleryHorizontalEnd, PaintBucket, Settings2, Upload
+  GalleryHorizontalEnd, PaintBucket, Settings2, Upload, Edit2, Check, X
 } from 'lucide-react';
 
 /* ─────────── ScaledCertPreview: auto-scale cert canvas to fit ────── */
@@ -227,6 +227,8 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
+  const [editingTemplateIndex, setEditingTemplateIndex] = useState<number | null>(null);
+  const [tempTemplateName, setTempTemplateName] = useState('');
   const canvasRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
@@ -410,9 +412,31 @@ export default function App() {
   };
 
   const saveTemplate = () => {
-    const updated = [...savedTemplates, { ...data } as any];
+    const defaultName = `Template ${savedTemplates.length + 1}`;
+    const updated = [...savedTemplates, { ...data, templateName: defaultName } as any];
     setSavedTemplates(updated);
     localStorage.setItem('cert_templates', JSON.stringify(updated));
+  };
+
+  const deleteTemplate = (index: number) => {
+    if (confirm("Are you sure you want to delete this template?")) {
+      const updated = savedTemplates.filter((_, i) => i !== index);
+      setSavedTemplates(updated);
+      localStorage.setItem('cert_templates', JSON.stringify(updated));
+    }
+  };
+
+  const startEditTemplate = (index: number, name: string) => {
+    setEditingTemplateIndex(index);
+    setTempTemplateName(name);
+  };
+
+  const saveTemplateName = (index: number) => {
+    const updated = [...savedTemplates];
+    updated[index] = { ...updated[index], templateName: tempTemplateName };
+    setSavedTemplates(updated);
+    localStorage.setItem('cert_templates', JSON.stringify(updated));
+    setEditingTemplateIndex(null);
   };
 
   const handleExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -710,12 +734,39 @@ export default function App() {
                 {savedTemplates.length > 0 && (
                   <div className="space-y-2 mt-4">
                     <SectionDivider title="Saved Templates" />
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-col gap-2">
                       {savedTemplates.map((t: any, i) => (
-                        <button key={i} onClick={() => setData(t)}
-                          className="px-4 py-2 rounded-lg border border-indigo-200 text-indigo-700 text-sm font-semibold hover:bg-indigo-50 transition">
-                          Template {i + 1}
-                        </button>
+                        editingTemplateIndex === i ? (
+                          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-300 bg-white">
+                            <input
+                              type="text"
+                              value={tempTemplateName}
+                              onChange={e => setTempTemplateName(e.target.value)}
+                              autoFocus
+                              onKeyDown={e => { if (e.key === 'Enter') saveTemplateName(i); if (e.key === 'Escape') setEditingTemplateIndex(null); }}
+                              className="flex-1 text-sm outline-none text-indigo-900 bg-transparent min-w-0"
+                            />
+                            <button onClick={() => saveTemplateName(i)} className="p-1.5 hover:bg-green-100 rounded text-green-600 transition shadow-sm"><Check className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setEditingTemplateIndex(null)} className="p-1.5 hover:bg-red-100 rounded text-red-500 transition shadow-sm"><X className="w-3.5 h-3.5" /></button>
+                          </div>
+                        ) : (
+                          <div key={i} className="group relative w-full flex">
+                            <button onClick={() => setData(t)}
+                              className="flex-1 text-left px-4 py-2.5 rounded-lg border border-indigo-200 text-indigo-700 text-sm font-semibold hover:bg-indigo-50 transition min-h-[46px]">
+                              {t.templateName || `Template ${i + 1}`}
+                            </button>
+                            <div className="absolute right-2 top-0 bottom-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                              <button onClick={(e) => { e.stopPropagation(); startEditTemplate(i, t.templateName || `Template ${i + 1}`); }}
+                                className="p-1.5 bg-white text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded shadow-sm border border-indigo-100 transition">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); deleteTemplate(i); }}
+                                className="p-1.5 bg-white text-red-500 hover:text-red-700 hover:bg-red-50 rounded shadow-sm border border-red-100 transition">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )
                       ))}
                     </div>
                   </div>
