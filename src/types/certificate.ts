@@ -9,6 +9,7 @@ export interface Signature {
 
 export interface CertificateData {
   title: string;
+  departmentName?: string;
   recipientName: string;
   eventName: string;
   completionText: string;
@@ -37,6 +38,7 @@ export interface CertificateData {
 
 export const DEFAULT_CERTIFICATE_DATA: CertificateData = {
   title: 'CERTIFICATE OF ACHIEVEMENT',
+  departmentName: '',
   recipientName: 'Recipient Name',
   eventName: 'Professional Development Seminar',
   completionText: 'in recognition of successful completion of',

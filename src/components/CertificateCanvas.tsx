@@ -40,9 +40,11 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
       <div className="flex items-center justify-between px-16 pt-12 pb-6">
         <LogoBox src={data.leftLogo} label="Left Logo" />
         <div className="text-center flex-1 px-6">
-          <div className="text-xs tracking-[0.3em] text-amber-800/60 uppercase mb-2 font-sans">
-            The Management Academy
-          </div>
+          {data.departmentName && (
+            <div className="text-xs tracking-[0.3em] text-amber-800/80 font-bold uppercase mb-2 font-sans whitespace-pre-line">
+              {data.departmentName}
+            </div>
+          )}
           <h1
             className="font-bold text-amber-900 leading-tight"
             style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: `${bodySize * 2.2}px`, letterSpacing: `${spacing}px`, color: data.styles.titleColor || undefined }}
@@ -142,6 +144,11 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
 
         {/* Title */}
         <div style={{ textAlign: align }}>
+          {data.departmentName && (
+            <div className="text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase mb-1 whitespace-pre-line leading-relaxed">
+              {data.departmentName}
+            </div>
+          )}
           <h1
             className="font-black text-gray-900 tracking-tight"
             style={{ fontSize: `${bodySize * 2.1}px`, letterSpacing: `${spacing}px`, fontFamily: 'system-ui, sans-serif', color: data.styles.titleColor || undefined }}
@@ -251,6 +258,11 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
             <span className="text-yellow-400/80 text-[10px] tracking-[0.4em] font-sans uppercase">Est. 2025</span>
             <div className="h-px w-10 bg-yellow-500/50" />
           </div>
+          {data.departmentName && (
+            <div className="text-xs font-bold tracking-[0.3em] text-yellow-500/90 uppercase mb-2 font-sans whitespace-pre-line leading-relaxed">
+              {data.departmentName}
+            </div>
+          )}
           <h1
             className={`font-bold leading-tight`}
             style={{
@@ -380,12 +392,19 @@ const CustomTemplate: React.FC<Props> = ({ data }) => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <LogoBox src={data.leftLogo} label="Logo" />
-          <h1
-            className="text-center font-bold"
-            style={{ fontSize: `${bodySize * 2}px`, letterSpacing: `${spacing}px`, color: data.styles.titleColor || '#1e293b' }}
-          >
-            {data.title}
-          </h1>
+          <div className="flex flex-col items-center">
+            {data.departmentName && (
+              <div className="text-xs font-bold tracking-widest text-gray-500 uppercase mb-1 whitespace-pre-line text-center leading-relaxed">
+                {data.departmentName}
+              </div>
+            )}
+            <h1
+              className="text-center font-bold"
+              style={{ fontSize: `${bodySize * 2}px`, letterSpacing: `${spacing}px`, color: data.styles.titleColor || '#1e293b' }}
+            >
+              {data.title}
+            </h1>
+          </div>
           <LogoBox src={data.rightLogo} label="Logo" />
         </div>
 

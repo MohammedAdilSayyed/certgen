@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { CertificateCanvas } from '@/components/CertificateCanvas';
-import { DEFAULT_CERTIFICATE_DATA } from '@/types/certificate';
-import type { CertificateData, Signature } from '@/types/certificate';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+import { DEFAULT_CERTIFICATE_DATA } from '@/types/certificate';
+import type { CertificateData, Signature } from '@/types/certificate';
 import {
   Download, Plus, Trash2, Save, QrCode, FileUp,
   GalleryHorizontalEnd, PaintBucket, Settings2, Upload
@@ -17,7 +19,7 @@ const CERT_H = 793;
 const ScaledCertPreview = ({
   canvasRef, data
 }: {
-  canvasRef: React.RefObject<HTMLDivElement | null>;
+  canvasRef?: React.Ref<HTMLDivElement>;
   data: CertificateData;
 }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -58,6 +60,54 @@ const ScaledCertPreview = ({
 };
 
 /* ───────────────────────── tiny helpers ─────────────────────────── */
+const removeImageBackground = (dataUrl: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(dataUrl);
+      
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        
+        if (a === 0) continue;
+        
+        // Calculate brightness
+        const brightness = (r + g + b) / 3;
+        
+        // Define points for blending
+        const whitePoint = 210; 
+        const blackPoint = 120; 
+        
+        if (brightness >= whitePoint) {
+          data[i + 3] = 0; // Transparent
+        } else if (brightness > blackPoint) {
+          // Soft edge blending
+          const factor = 1 - ((brightness - blackPoint) / (whitePoint - blackPoint));
+          data[i + 3] = a * factor;
+        }
+      }
+      
+      ctx.putImageData(imgData, 0, 0);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
+
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1.5">
     <label className="text-sm font-semibold text-gray-700">{label}</label>
@@ -173,8 +223,11 @@ export default function App() {
   const [data, setData] = useState<CertificateData>(DEFAULT_CERTIFICATE_DATA);
   const [activeTab, setActiveTab] = useState<'content' | 'style' | 'layout' | 'bulk'>('content');
   const [savedTemplates, setSavedTemplates] = useState<CertificateData[]>([]);
+  const [bulkNames, setBulkNames] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportProgress, setExportProgress] = useState<string | null>(null);
+  const canvasRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('cert_templates');
@@ -202,7 +255,8 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     const img = await readFile(file);
-    set('signatures', data.signatures.map(s => s.id === id ? { ...s, image: img } : s));
+    const processedImg = await removeImageBackground(img);
+    set('signatures', data.signatures.map(s => s.id === id ? { ...s, image: processedImg } : s));
   };
 
   const addSig = () =>
@@ -228,117 +282,130 @@ export default function App() {
     return `${name || 'document'}.${ext}`;
   };
 
-  const exportPDF = async () => {
-    if (!canvasRef.current) return;
+  const captureCanvas = async (el: HTMLDivElement) => {
+    const parent = el.parentElement;
+    const originalTransform = el.style.transform;
+    const originalWidth = parent?.style.width;
+    const originalHeight = parent?.style.height;
+
+    el.style.transform = 'scale(1)';
+    if (parent) {
+      parent.style.width = '1122px';
+      parent.style.height = '793px';
+    }
+
+    const canvas = await html2canvas(el, { 
+      scale: 2, 
+      useCORS: true, 
+      backgroundColor: '#ffffff',
+      width: 1122,
+      height: 793,
+      logging: false
+    });
+
+    el.style.transform = originalTransform;
+    if (parent) {
+      parent.style.width = originalWidth || '';
+      parent.style.height = originalHeight || '';
+    }
+
+    return canvas;
+  };
+
+  const getValidRefs = () => {
+    const refs = bulkNames.length > 0 
+      ? canvasRefs.current.slice(0, bulkNames.length) 
+      : [canvasRefs.current[0]];
+    return refs.filter(Boolean) as HTMLDivElement[];
+  };
+
+  const doExportPDF = async (type: 'single' | 'multiple') => {
+    setShowExportModal(false);
     setExporting(true);
     try {
-      const el = canvasRef.current;
-      const parent = el.parentElement;
-      
-      // Save original styles
-      const originalTransform = el.style.transform;
-      const originalWidth = parent?.style.width;
-      const originalHeight = parent?.style.height;
-      
-      // Reset for capture
-      el.style.transform = 'scale(1)';
-      if (parent) {
-        parent.style.width = '1122px';
-        parent.style.height = '793px';
+      const els = getValidRefs();
+      if (els.length === 0) throw new Error("No previews found.");
+
+      const eventNameStr = (data.eventName || 'Certificates').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-');
+
+      if (type === 'single') {
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+        for (let i = 0; i < els.length; i++) {
+          setExportProgress(`Generating PDF page ${i + 1} of ${els.length}...`);
+          if (i > 0) pdf.addPage();
+          const canvas = await captureCanvas(els[i]);
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+        }
+        pdf.save(els.length > 1 ? `${eventNameStr}.pdf` : getSafeFileName('pdf'));
+      } else {
+        const zip = new JSZip();
+        for (let i = 0; i < els.length; i++) {
+          setExportProgress(`Generating PDF ${i + 1} of ${els.length}...`);
+          const canvas = await captureCanvas(els[i]);
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+          pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
+          
+          const name = (bulkNames[i] || 'Document').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-');
+          zip.file(`${name}.pdf`, pdf.output('blob'));
+        }
+        setExportProgress("Zipping files... please wait.");
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        saveAs(zipBlob, `${eventNameStr}_pdf.zip`);
       }
-      
-      const canvas = await html2canvas(el, { 
-        scale: 2, 
-        useCORS: true, 
-        backgroundColor: '#ffffff',
-        width: 1122,
-        height: 793,
-        logging: false
-      });
-      
-      // Restore styles
-      el.style.transform = originalTransform;
-      if (parent) {
-        parent.style.width = originalWidth || '';
-        parent.style.height = originalHeight || '';
-      }
-      
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-        compress: true
-      });
-      
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
-      
-      const fileName = getSafeFileName('pdf');
-      console.log('Downloading PDF:', fileName);
-      pdf.save(fileName);
     } catch (e) {
       console.error("PDF Export failed:", e);
-      alert("PDF Export failed. Please check the console.");
+      alert("PDF Export failed.");
     } finally {
       setExporting(false);
+      setExportProgress(null);
+    }
+  };
+
+  const exportPDF = () => {
+    if (bulkNames.length > 0) {
+      setShowExportModal(true);
+    } else {
+      doExportPDF('single');
     }
   };
 
   const exportPNG = async () => {
-    if (!canvasRef.current) return;
     setExporting(true);
     try {
-      const el = canvasRef.current;
-      const parent = el.parentElement;
-      
-      const originalTransform = el.style.transform;
-      const originalWidth = parent?.style.width;
-      const originalHeight = parent?.style.height;
-      
-      el.style.transform = 'scale(1)';
-      if (parent) {
-        parent.style.width = '1122px';
-        parent.style.height = '793px';
+      const els = getValidRefs();
+      if (els.length === 0) throw new Error("No previews found.");
+
+      const eventNameStr = (data.eventName || 'Certificates').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-');
+
+      if (bulkNames.length > 0) {
+        const zip = new JSZip();
+        for (let i = 0; i < els.length; i++) {
+          setExportProgress(`Generating PNG ${i + 1} of ${els.length}...`);
+          const canvas = await captureCanvas(els[i]);
+          const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/png', 1.0));
+          if (blob) {
+            const name = (bulkNames[i] || 'Document').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-');
+            zip.file(`${name}.png`, blob);
+          }
+        }
+        setExportProgress("Zipping files... please wait.");
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        saveAs(zipBlob, `${eventNameStr}_png.zip`);
+      } else {
+        const canvas = await captureCanvas(els[0]);
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          saveAs(blob, getSafeFileName('png'));
+        }, 'image/png', 1.0);
       }
-      
-      const canvas = await html2canvas(el, { 
-        scale: 2, 
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        width: 1122,
-        height: 793,
-        logging: false
-      });
-      
-      el.style.transform = originalTransform;
-      if (parent) {
-        parent.style.width = originalWidth || '';
-        parent.style.height = originalHeight || '';
-      }
-      
-      canvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const fileName = getSafeFileName('png');
-        console.log('Downloading PNG:', fileName);
-        
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        
-        // Slightly longer delay for slower systems
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          setExporting(false);
-        }, 1000);
-      }, 'image/png', 1.0);
     } catch (e) {
       console.error("PNG Export failed:", e);
       alert("PNG Export failed.");
+    } finally {
       setExporting(false);
+      setExportProgress(null);
     }
   };
 
@@ -348,25 +415,31 @@ export default function App() {
     localStorage.setItem('cert_templates', JSON.stringify(updated));
   };
 
-  const handleCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    Papa.parse(file, {
-      header: true,
-      complete: (results: Papa.ParseResult<any>) => {
-        const rows = results.data as any[];
-        for (const row of rows) {
-          if (row.name) {
-            setData(prev => ({
-              ...prev,
-              recipientName: row.name,
-              uniqueId: row.id ?? Math.random().toString(36).slice(2, 9).toUpperCase(),
-              qrCodeValue: row.qr ?? `CERT-${row.id ?? 'VALID'}`
-            }));
-          }
+
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer);
+    const worksheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[worksheetName];
+    
+    // Parse to array of arrays
+    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    
+    const names: string[] = [];
+    for (let i = 0; i < json.length; i++) {
+        const row = json[i] as any[];
+        if (row && row.length > 0 && typeof row[0] === 'string' && row[0].trim() !== '') {
+            const val = row[0].trim();
+            if (i === 0 && val.toLowerCase() === 'name') continue; // Skip header
+            names.push(val);
         }
-      }
-    });
+    }
+
+    if (names.length > 0) {
+      setBulkNames(names);
+    }
   };
 
   const templates = [
@@ -399,16 +472,16 @@ export default function App() {
           <button
             onClick={exportPNG}
             disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition disabled:opacity-50"
           >
             <Download className="w-4 h-4" /> PNG
           </button>
           <button
             onClick={exportPDF}
             disabled={exporting}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition"
+            className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition disabled:opacity-50"
           >
-            <Download className="w-4 h-4" /> {exporting ? 'Exporting…' : 'Download PDF'}
+            <Download className="w-4 h-4" /> {exporting ? 'Generating…' : 'Download PDF'}
           </button>
         </div>
       </header>
@@ -434,6 +507,15 @@ export default function App() {
             {/* ── CONTENT tab ── */}
             {activeTab === 'content' && (
               <>
+                <Field label="Department Name">
+                  <StyledTextarea 
+                    value={data.departmentName || ''} 
+                    onChange={e => set('departmentName', e.target.value)}
+                    placeholder={'e.g. Department of\nComputer Science'} 
+                    className="min-h-[70px] leading-snug"
+                  />
+                </Field>
+
                 <Field label="Certificate Title">
                   <StyledInput value={data.title} onChange={e => set('title', e.target.value)}
                     placeholder="CERTIFICATE OF ACHIEVEMENT" />
@@ -649,24 +731,29 @@ export default function App() {
                     <FileUp className="w-7 h-7 text-indigo-500" />
                   </div>
                   <div>
-                    <p className="font-bold text-gray-800">Bulk CSV Upload</p>
-                    <p className="text-sm text-gray-500 mt-1">CSV must have columns: <code className="bg-white px-1 rounded border">name</code>, <code className="bg-white px-1 rounded border">id</code>, <code className="bg-white px-1 rounded border">qr</code></p>
+                    <p className="font-bold text-gray-800">Bulk Excel Upload</p>
+                    <p className="text-sm text-gray-500 mt-1">Excel file must have one column for <code className="bg-white px-1 rounded border">name</code>.</p>
                   </div>
                   <label className="w-full px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold cursor-pointer hover:bg-indigo-700 transition flex items-center justify-center gap-2">
-                    <Upload className="w-4 h-4" /> Choose CSV File
-                    <input type="file" accept=".csv" className="hidden" onChange={handleCSV} />
+                    <Upload className="w-4 h-4" /> Choose Excel File
+                    <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcel} />
                   </label>
+                  {bulkNames.length > 0 && (
+                    <button onClick={() => setBulkNames([])} className="text-sm text-red-500 hover:text-red-700 font-semibold mt-2">
+                      Clear Uploaded Names
+                    </button>
+                  )}
                 </div>
 
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-                  <strong>💡 How it works:</strong> Upload a .csv with recipient names. Each row updates the preview — you can then export individually or all at once.
+                  <strong>💡 How it works:</strong> Upload an Excel file containing recipient names. All generated certificates will be displayed vertically in the preview pane.
                 </div>
 
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-500 font-mono">
-                  <p className="font-bold text-gray-700 mb-1">Sample CSV format:</p>
-                  <p>name,id,qr</p>
-                  <p>Alice Johnson,CERT-001,https://verify/001</p>
-                  <p>Bob Smith,CERT-002,https://verify/002</p>
+                  <p className="font-bold text-gray-700 mb-1">Sample Excel format:</p>
+                  <p>A1: name</p>
+                  <p>A2: Alice Johnson</p>
+                  <p>A3: Bob Smith</p>
                 </div>
               </>
             )}
@@ -682,15 +769,77 @@ export default function App() {
           </div>
 
           {/* Scaled preview stage */}
-          <div className="flex-1 overflow-hidden flex items-center justify-center p-6">
-            {/* Outer responsive wrapper — uses aspect ratio to reserve space */}
-            <div className="w-full" style={{ maxWidth: '100%', aspectRatio: '1122/793' }}>
-              <ScaledCertPreview canvasRef={canvasRef} data={data} />
-            </div>
+          <div className="flex-1 overflow-y-auto flex flex-col items-center p-6 gap-8">
+            {bulkNames.length > 0 ? (
+              bulkNames.map((name, index) => (
+                <div key={index} className="w-full shrink-0 shadow-lg" style={{ maxWidth: '100%', aspectRatio: '1122/793' }}>
+                  <ScaledCertPreview canvasRef={(el) => { canvasRefs.current[index] = el }} data={{...data, recipientName: name}} />
+                </div>
+              ))
+            ) : (
+                <div className="w-full shrink-0 shadow-lg" style={{ maxWidth: '100%', aspectRatio: '1122/793' }}>
+                  <ScaledCertPreview canvasRef={(el) => { canvasRefs.current[0] = el }} data={data} />
+                </div>
+            )}
           </div>
         </main>
 
       </div>
+
+      {/* Export Progress Overlay */}
+      {exportProgress && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="bg-white rounded-xl p-6 shadow-2xl border border-gray-100 flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
+            <p className="font-semibold text-gray-800">{exportProgress}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk PDF Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 transition-all">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Bulk PDF Export</h3>
+            <p className="text-sm text-gray-500 mb-6">You have <strong>{bulkNames.length}</strong> certificates ready. How would you like to download them?</p>
+            
+            <div className="space-y-3">
+              <button 
+                onClick={() => doExportPDF('single')}
+                className="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition">
+                  <Download className="w-5 h-5 text-indigo-600 group-hover:text-white transition" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Single PDF</div>
+                  <div className="text-xs text-gray-500">All certificates in one long document</div>
+                </div>
+              </button>
+
+              <button 
+                onClick={() => doExportPDF('multiple')}
+                className="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition text-left group"
+              >
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 transition">
+                  <FileUp className="w-5 h-5 text-indigo-600 group-hover:text-white transition" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Multiple PDFs (ZIP)</div>
+                  <div className="text-xs text-gray-500">Individual files grouped in a .zip archive</div>
+                </div>
+              </button>
+            </div>
+            
+            <button 
+              onClick={() => setShowExportModal(false)}
+              className="mt-6 w-full py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
