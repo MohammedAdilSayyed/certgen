@@ -207,7 +207,7 @@ const TabBtn = ({
   <button
     onClick={onClick}
     className={[
-      'flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all flex-1',
+      'flex flex-col items-center gap-1 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-[10px] sm:text-xs font-semibold transition-all flex-1 min-w-[64px] sm:min-w-[70px]',
       active
         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
         : 'text-gray-500 hover:bg-gray-100'
@@ -474,47 +474,47 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-100 flex flex-col">
+    <div className="h-screen bg-gradient-to-br from-slate-100 via-indigo-50 to-slate-100 flex flex-col overflow-hidden">
       {/* Top bar */}
-      <header className="bg-white/80 backdrop-blur border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md">
+      <header className="bg-white/80 backdrop-blur border-b border-gray-200 px-4 sm:px-6 py-3 flex flex-col sm:flex-row gap-3 sm:gap-0 items-center justify-between shadow-sm shrink-0 z-20">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shrink-0">
             <GalleryHorizontalEnd className="w-5 h-5 text-white" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-lg font-extrabold text-gray-900 leading-none">CertiGen PRO</h1>
-            <p className="text-[11px] text-gray-400">Professional Certificate Generator</p>
+            <p className="text-[11px] text-gray-400 truncate">Professional Certificate Generator</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
           <button
             onClick={saveTemplate}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition flex-1 sm:flex-none whitespace-nowrap"
           >
-            <Save className="w-4 h-4" /> Save Template
+            <Save className="w-4 h-4 shrink-0" /> <span className="hidden sm:inline">Save Template</span><span className="sm:hidden">Save</span>
           </button>
           <button
             onClick={exportPNG}
             disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-indigo-200 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 transition disabled:opacity-50 flex-1 sm:flex-none whitespace-nowrap"
           >
-            <Download className="w-4 h-4" /> PNG
+            <Download className="w-4 h-4 shrink-0" /> PNG
           </button>
           <button
             onClick={exportPDF}
             disabled={exporting}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-200 transition disabled:opacity-50 flex-1 sm:flex-none whitespace-nowrap"
           >
-            <Download className="w-4 h-4" /> {exporting ? 'Generating…' : 'Download PDF'}
+            <Download className="w-4 h-4 shrink-0" /> {exporting ? 'Generating…' : 'PDF'}
           </button>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
         {/* ── Left Panel ── */}
-        <aside className="w-[380px] min-w-[340px] bg-white border-r border-gray-200 flex flex-col overflow-hidden shadow-xl">
+        <aside className="w-full lg:w-[380px] lg:min-w-[340px] max-h-[50vh] lg:max-h-none bg-white border-b lg:border-b-0 lg:border-r border-gray-200 flex flex-col shrink-0 overflow-hidden shadow-xl z-10 transition-all">
           {/* Tab bar */}
-          <div className="flex gap-1.5 p-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex gap-1 p-2 sm:p-3 bg-gray-50 border-b border-gray-200 shrink-0 overflow-x-auto hide-scrollbar">
             <TabBtn active={activeTab === 'content'} onClick={() => setActiveTab('content')}
               icon={<Settings2 className="w-4 h-4" />} label="Content" />
             <TabBtn active={activeTab === 'style'} onClick={() => setActiveTab('style')}
@@ -812,15 +812,15 @@ export default function App() {
         </aside>
 
         {/* ── Right: Certificate Preview ── */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200">
+        <main className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-200 via-slate-300 to-slate-200 min-h-0">
           {/* Preview header bar */}
-          <div className="bg-indigo-900 text-white px-6 py-2.5 flex items-center justify-between shrink-0">
-            <span className="text-xs font-bold tracking-widest uppercase">📄 Live Preview — A4 Landscape (1122×793px)</span>
-            <span className="text-xs text-indigo-300">Export renders at 2× for print quality</span>
+          <div className="bg-indigo-900 text-white px-4 sm:px-6 py-2 sm:py-2.5 flex flex-col sm:flex-row items-center justify-between shrink-0 gap-1 sm:gap-0 text-center sm:text-left">
+            <span className="text-[10px] sm:text-xs font-bold tracking-widest uppercase">📄 Live Preview — A4 Landscape (1122×793px)</span>
+            <span className="text-[10px] sm:text-xs text-indigo-300">Export renders at 2× for print quality</span>
           </div>
 
           {/* Scaled preview stage */}
-          <div className="flex-1 overflow-y-auto flex flex-col items-center p-6 gap-8">
+          <div className="flex-1 overflow-y-auto flex flex-col items-center p-4 sm:p-6 gap-6 sm:gap-8 min-h-0">
             {bulkNames.length > 0 ? (
               bulkNames.map((name, index) => (
                 <div key={index} className="w-full shrink-0 shadow-lg" style={{ maxWidth: '100%', aspectRatio: '1122/793' }}>
