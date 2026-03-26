@@ -7,10 +7,10 @@ interface Props { data: CertificateData; }
 /* ── helpers ── */
 const font = (family: string) => {
   switch (family) {
-    case 'serif':     return "'Playfair Display', Georgia, serif";
-    case 'cursive':   return "'Dancing Script', cursive";
+    case 'serif': return "'Playfair Display', Georgia, serif";
+    case 'cursive': return "'Dancing Script', cursive";
     case 'monospace': return "'Courier New', Courier, monospace";
-    default:          return "system-ui, -apple-system, sans-serif";
+    default: return "system-ui, -apple-system, sans-serif";
   }
 };
 
@@ -18,10 +18,10 @@ const font = (family: string) => {
    CLASSIC FORMAL TEMPLATE
 ══════════════════════════════════════════════════════════════ */
 const ClassicTemplate: React.FC<Props> = ({ data }) => {
-  const bodyFont  = font(data.styles.fontFamily);
-  const bodySize  = data.styles.fontSize;
-  const spacing   = data.styles.spacing;
-  const align     = data.styles.textAlign;
+  const bodyFont = font(data.styles.fontFamily);
+  const bodySize = data.styles.fontSize;
+  const spacing = data.styles.spacing;
+  const align = data.styles.textAlign;
 
   return (
     <div
@@ -32,7 +32,7 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
       <div className="absolute inset-0 border-[16px] border-double border-amber-800/30 pointer-events-none z-10" />
       <div className="absolute inset-[24px] border border-amber-800/20 pointer-events-none z-10" />
       {/* Corner ornaments */}
-      {[['top-4 left-4','┌'], ['top-4 right-4','┐'], ['bottom-4 left-4','└'], ['bottom-4 right-4','┘']].map(([pos, char]) => (
+      {[['top-4 left-4', '┌'], ['top-4 right-4', '┐'], ['bottom-4 left-4', '└'], ['bottom-4 right-4', '┘']].map(([pos, char]) => (
         <span key={pos} className={`absolute ${pos} text-amber-700/40 text-3xl font-serif pointer-events-none z-10`}>{char}</span>
       ))}
 
@@ -120,8 +120,8 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
 const ModernTemplate: React.FC<Props> = ({ data }) => {
   const bodyFont = font(data.styles.fontFamily);
   const bodySize = data.styles.fontSize;
-  const spacing  = data.styles.spacing;
-  const align    = data.styles.textAlign;
+  const spacing = data.styles.spacing;
+  const align = data.styles.textAlign;
 
   return (
     <div className="w-full h-full flex" style={{ background: '#fff', fontFamily: bodyFont }}>
@@ -170,8 +170,8 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
                 fontFamily: data.styles.fontFamily === 'serif'
                   ? "'Playfair Display', Georgia, serif"
                   : data.styles.fontFamily === 'cursive'
-                  ? "'Dancing Script', cursive"
-                  : 'system-ui, sans-serif',
+                    ? "'Dancing Script', cursive"
+                    : 'system-ui, sans-serif',
                 fontSize: `${bodySize * 3.2}px`,
                 backgroundImage: !data.styles.recipientColor ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : undefined,
                 color: data.styles.recipientColor || undefined,
@@ -230,8 +230,8 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
 const PremiumTemplate: React.FC<Props> = ({ data }) => {
   const bodyFont = font(data.styles.fontFamily);
   const bodySize = data.styles.fontSize;
-  const spacing  = data.styles.spacing;
-  const align    = data.styles.textAlign;
+  const spacing = data.styles.spacing;
+  const align = data.styles.textAlign;
 
   return (
     <div
@@ -377,8 +377,8 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
 const CustomTemplate: React.FC<Props> = ({ data }) => {
   const bodyFont = font(data.styles.fontFamily);
   const bodySize = data.styles.fontSize;
-  const spacing  = data.styles.spacing;
-  const align    = data.styles.textAlign;
+  const spacing = data.styles.spacing;
+  const align = data.styles.textAlign;
 
   return (
     <div className="w-full h-full relative flex flex-col">
@@ -408,7 +408,7 @@ const CustomTemplate: React.FC<Props> = ({ data }) => {
           <LogoBox src={data.rightLogo} label="Logo" />
         </div>
 
-        <hr className="border-gray-400/30" />
+
 
         {/* Body */}
         <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ textAlign: align }}>
@@ -469,12 +469,12 @@ const LogoBox = ({
     {src
       ? <img src={src} className="w-full h-full object-contain" alt={label} />
       : <div className={[
-          'w-full h-full flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed',
-          dark ? 'border-yellow-500/20 text-yellow-500/20' : 'border-gray-300 text-gray-300'
-        ].join(' ')}>
-          <span className="text-xl">🏫</span>
-          <span className="text-[9px] font-medium">{label}</span>
-        </div>
+        'w-full h-full flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed',
+        dark ? 'border-yellow-500/20 text-yellow-500/20' : 'border-gray-300 text-gray-300'
+      ].join(' ')}>
+        <span className="text-xl">🏫</span>
+        <span className="text-[9px] font-medium">{label}</span>
+      </div>
     }
   </div>
 );
@@ -559,9 +559,9 @@ const SignaturesLayout = ({
 ══════════════════════════════════════════════════════════════ */
 export const CertificateCanvas: React.FC<Props> = ({ data }) => {
   switch (data.templateId) {
-    case 'modern':  return <ModernTemplate data={data} />;
+    case 'modern': return <ModernTemplate data={data} />;
     case 'premium': return <PremiumTemplate data={data} />;
-    case 'custom':  return <CustomTemplate data={data} />;
-    default:        return <ClassicTemplate data={data} />;
+    case 'custom': return <CustomTemplate data={data} />;
+    default: return <ClassicTemplate data={data} />;
   }
 };
