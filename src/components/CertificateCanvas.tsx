@@ -14,6 +14,22 @@ const font = (family: string) => {
   }
 };
 
+/** Converts **bold** markers in a string to <strong> spans */
+const parseBold = (text: string): React.ReactNode => {
+  if (!text || !text.includes('**')) return text;
+  const parts = text.split(/(\*\*(?:[^*]|\*(?!\*))+\*\*)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+          return <strong key={i}>{part.slice(2, -2)}</strong>;
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
+    </>
+  );
+};
+
 /** Returns inline style overrides for a named field from fieldStyles */
 const fStyle = (data: CertificateData, key: string): React.CSSProperties => {
   const fs = data.styles.fieldStyles?.[key];
@@ -21,7 +37,6 @@ const fStyle = (data: CertificateData, key: string): React.CSSProperties => {
   return {
     transform: (fs.x || fs.y) ? `translate(${fs.x ?? 0}px, ${fs.y ?? 0}px)` : undefined,
     fontSize: fs.fontSize ? `${fs.fontSize}px` : undefined,
-    fontWeight: fs.bold ? 'bold' : undefined,
   };
 };
 
@@ -39,10 +54,8 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
       className="w-full h-full relative flex flex-col"
       style={{ background: '#fdfaf5', fontFamily: bodyFont }}
     >
-      {/* Outer decorative border */}
       <div className="absolute inset-0 border-[16px] border-double border-amber-800/30 pointer-events-none z-10" />
       <div className="absolute inset-[24px] border border-amber-800/20 pointer-events-none z-10" />
-      {/* Corner ornaments */}
       {[['top-4 left-4', '┌'], ['top-4 right-4', '┐'], ['bottom-4 left-4', '└'], ['bottom-4 right-4', '┘']].map(([pos, char]) => (
         <span key={pos} className={`absolute ${pos} text-amber-700/40 text-3xl font-serif pointer-events-none z-10`}>{char}</span>
       ))}
@@ -51,12 +64,10 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
       <div className="flex items-center justify-between px-16 pt-12 pb-6">
         <LogoBox src={data.leftLogo} label="Left Logo" />
         <div className="text-center flex-1 px-6">
-          {data.departmentName && (
-            <div
-              className="text-xs tracking-[0.3em] text-amber-800/80 font-bold uppercase mb-2 font-sans whitespace-pre-line"
-              style={fStyle(data, 'departmentName')}
-            >
-              {data.departmentName}
+          {(data.departmentName || data.departmentName2) && (
+            <div className="text-xs tracking-[0.3em] text-amber-800/80 font-bold uppercase mb-2 font-sans">
+              {data.departmentName && <div style={fStyle(data, 'departmentName')}>{parseBold(data.departmentName)}</div>}
+              {data.departmentName2 && <div style={fStyle(data, 'departmentName2')}>{parseBold(data.departmentName2)}</div>}
             </div>
           )}
           <h1
@@ -69,7 +80,7 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
               ...fStyle(data, 'title'),
             }}
           >
-            {data.title}
+            {parseBold(data.title)}
           </h1>
           <div className="mt-3 flex items-center justify-center gap-2">
             <div className="h-px w-20 bg-amber-800/40" />
@@ -96,7 +107,7 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
               ...fStyle(data, 'recipientName'),
             }}
           >
-            {data.recipientName}
+            {parseBold(data.recipientName)}
           </h2>
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-0.5 bg-gradient-to-r from-transparent via-amber-800/40 to-transparent" />
         </div>
@@ -111,7 +122,7 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
             ...fStyle(data, 'completionText'),
           }}
         >
-          {data.completionText || 'in recognition of successful completion of'}
+          {parseBold(data.completionText || 'in recognition of successful completion of')}
         </p>
 
         <p
@@ -125,7 +136,7 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
             ...fStyle(data, 'eventName'),
           }}
         >
-          {data.eventName}
+          {parseBold(data.eventName)}
         </p>
 
         <p
@@ -140,7 +151,7 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
             ...fStyle(data, 'description'),
           }}
         >
-          {data.description}
+          {parseBold(data.description)}
         </p>
 
         {data.uniqueId && (
@@ -150,11 +161,9 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
         )}
       </div>
 
-      {/* Footer — Signatures + QR */}
+      {/* Footer */}
       <div className="px-16 pb-10 flex items-end justify-between gap-10 w-full">
-        <div className="flex-1">
-          <SignaturesLayout signatures={data.signatures} />
-        </div>
+        <div className="flex-1"><SignaturesLayout signatures={data.signatures} /></div>
         {data.qrCodeValue && (
           <div className="flex flex-col items-center gap-1 shrink-0">
             <QRCodeSVG value={data.qrCodeValue} size={72} bgColor="transparent" />
@@ -177,11 +186,8 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
 
   return (
     <div className="w-full h-full flex" style={{ background: '#fff', fontFamily: bodyFont }}>
-      {/* Left accent bar */}
       <div className="w-3 bg-gradient-to-b from-indigo-500 via-purple-500 to-indigo-800 shrink-0" />
-
       <div className="flex-1 flex flex-col px-14 py-10 gap-4">
-        {/* Top row */}
         <div className="flex items-center justify-between">
           <LogoBox src={data.leftLogo} label="Logo" small />
           <div className="flex items-center gap-3">
@@ -190,18 +196,13 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
           </div>
           <LogoBox src={data.rightLogo} label="Logo" small />
         </div>
-
-        {/* Accent line */}
         <div className="h-0.5 bg-gradient-to-r from-indigo-500 via-purple-400 to-transparent rounded-full" />
 
-        {/* Title */}
         <div style={{ textAlign: align }}>
-          {data.departmentName && (
-            <div
-              className="text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase mb-1 whitespace-pre-line leading-relaxed"
-              style={fStyle(data, 'departmentName')}
-            >
-              {data.departmentName}
+          {(data.departmentName || data.departmentName2) && (
+            <div className="text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase mb-1 leading-relaxed">
+              {data.departmentName && <div style={fStyle(data, 'departmentName')}>{parseBold(data.departmentName)}</div>}
+              {data.departmentName2 && <div style={fStyle(data, 'departmentName2')}>{parseBold(data.departmentName2)}</div>}
             </div>
           )}
           <h1
@@ -214,25 +215,20 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
               ...fStyle(data, 'title'),
             }}
           >
-            {data.title}
+            {parseBold(data.title)}
           </h1>
         </div>
 
-        {/* Center content */}
         <div className="flex-1 flex flex-col justify-center gap-5" style={{ textAlign: align }}>
           <p style={{ fontSize: `${bodySize}px`, color: '#64748b', letterSpacing: `${spacing}px` }}>
             This is to proudly certify that
           </p>
-
           <div>
             <h2
               className={`font-black ${!data.styles.recipientColor ? 'bg-clip-text text-transparent' : ''}`}
               style={{
-                fontFamily: data.styles.fontFamily === 'serif'
-                  ? "'Playfair Display', Georgia, serif"
-                  : data.styles.fontFamily === 'cursive'
-                    ? "'Dancing Script', cursive"
-                    : 'system-ui, sans-serif',
+                fontFamily: data.styles.fontFamily === 'serif' ? "'Playfair Display', Georgia, serif"
+                  : data.styles.fontFamily === 'cursive' ? "'Dancing Script', cursive" : 'system-ui, sans-serif',
                 fontSize: `${bodySize * 3.2}px`,
                 backgroundImage: !data.styles.recipientColor ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : undefined,
                 color: data.styles.recipientColor || undefined,
@@ -241,24 +237,22 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
                 ...fStyle(data, 'recipientName'),
               }}
             >
-              {data.recipientName}
+              {parseBold(data.recipientName)}
             </h2>
-            <div className="mt-2 h-1 w-32 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full mx-auto" style={{ marginLeft: align === 'left' ? 0 : align === 'right' ? 'auto' : 'auto', marginRight: align === 'right' ? 0 : 'auto' }} />
+            <div className="mt-2 h-1 w-32 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+              style={{ marginLeft: align === 'left' ? 0 : 'auto', marginRight: align === 'right' ? 0 : 'auto' }} />
           </div>
-
           <div className="space-y-2">
             <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || '#64748b', letterSpacing: `${spacing}px`, ...fStyle(data, 'completionText') }}>
-              {data.completionText || 'has successfully completed'}
+              {parseBold(data.completionText || 'has successfully completed')}
             </p>
             <p style={{ fontSize: `${bodySize * 1.5}px`, fontWeight: 800, color: data.styles.eventColor || '#1e293b', letterSpacing: `${spacing}px`, ...fStyle(data, 'eventName') }}>
-              {data.eventName}
+              {parseBold(data.eventName)}
             </p>
           </div>
-
           <p style={{ fontSize: `${bodySize * 0.95}px`, color: data.styles.descriptionColor || '#94a3b8', lineHeight: 1.7, maxWidth: 680, letterSpacing: `${spacing}px`, margin: align === 'center' ? '0 auto' : undefined, ...fStyle(data, 'description') }}>
-            {data.description}
+            {parseBold(data.description)}
           </p>
-
           {data.uniqueId && (
             <div className="flex items-center gap-3" style={{ justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start' }}>
               <div className="px-4 py-1.5 bg-gray-50 rounded-full">
@@ -268,12 +262,9 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
           )}
         </div>
 
-        {/* Footer */}
         <div className="h-0.5 bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
         <div className="flex items-end justify-between pt-1 gap-10 w-full">
-          <div className="flex-1">
-            <SignaturesLayout signatures={data.signatures} color="indigo" />
-          </div>
+          <div className="flex-1"><SignaturesLayout signatures={data.signatures} color="indigo" /></div>
           {data.qrCodeValue && (
             <div className="flex flex-col items-center gap-1 shrink-0">
               <QRCodeSVG value={data.qrCodeValue} size={68} fgColor="#4f46e5" bgColor="transparent" />
@@ -298,20 +289,13 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
   return (
     <div
       className="w-full h-full flex flex-col"
-      style={{
-        background: 'linear-gradient(135deg, #1a0a00 0%, #2d1200 40%, #1a0a00 100%)',
-        fontFamily: bodyFont
-      }}
+      style={{ background: 'linear-gradient(135deg, #1a0a00 0%, #2d1200 40%, #1a0a00 100%)', fontFamily: bodyFont }}
     >
-      {/* Gold border */}
       <div className="absolute inset-0 border-[8px] border-yellow-500/40 pointer-events-none z-10" />
       <div className="absolute inset-4 border border-yellow-400/20 pointer-events-none z-10" />
-
-      {/* Radial glow */}
       <div className="absolute inset-0 pointer-events-none z-0"
         style={{ background: 'radial-gradient(ellipse at 50% 40%, rgba(212,175,55,0.12) 0%, transparent 65%)' }} />
 
-      {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-16 pt-12 pb-4">
         <LogoBox src={data.leftLogo} label="Logo" dark />
         <div className="text-center">
@@ -320,96 +304,69 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
             <span className="text-yellow-400/80 text-[10px] tracking-[0.4em] font-sans uppercase">Est. 2025</span>
             <div className="h-px w-10 bg-yellow-500/50" />
           </div>
-          {data.departmentName && (
-            <div
-              className="text-xs font-bold tracking-[0.3em] text-yellow-500/90 uppercase mb-2 font-sans whitespace-pre-line leading-relaxed"
-              style={fStyle(data, 'departmentName')}
-            >
-              {data.departmentName}
+          {(data.departmentName || data.departmentName2) && (
+            <div className="text-xs font-bold tracking-[0.3em] text-yellow-500/90 uppercase mb-2 font-sans leading-relaxed">
+              {data.departmentName && <div style={fStyle(data, 'departmentName')}>{parseBold(data.departmentName)}</div>}
+              {data.departmentName2 && <div style={fStyle(data, 'departmentName2')}>{parseBold(data.departmentName2)}</div>}
             </div>
           )}
-          <h1
-            className={`font-bold leading-tight`}
-            style={{
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontSize: `${bodySize * 2.0}px`,
-              letterSpacing: `${spacing * 0.5 + 3}px`,
-              background: !data.styles.titleColor ? 'linear-gradient(to bottom, #f5d572, #c8963a)' : undefined,
-              WebkitBackgroundClip: !data.styles.titleColor ? 'text' : undefined,
-              WebkitTextFillColor: !data.styles.titleColor ? 'transparent' : undefined,
-              color: data.styles.titleColor || undefined,
-              ...fStyle(data, 'title'),
-            }}
-          >
-            {data.title}
+          <h1 className="font-bold leading-tight" style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: `${bodySize * 2.0}px`,
+            letterSpacing: `${spacing * 0.5 + 3}px`,
+            background: !data.styles.titleColor ? 'linear-gradient(to bottom, #f5d572, #c8963a)' : undefined,
+            WebkitBackgroundClip: !data.styles.titleColor ? 'text' : undefined,
+            WebkitTextFillColor: !data.styles.titleColor ? 'transparent' : undefined,
+            color: data.styles.titleColor || undefined,
+            ...fStyle(data, 'title'),
+          }}>
+            {parseBold(data.title)}
           </h1>
         </div>
         <LogoBox src={data.rightLogo} label="Logo" dark />
       </div>
 
-      {/* Gold separator line */}
       <div className="relative z-10 mx-16 flex items-center gap-3 my-1">
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-500/50 to-transparent" />
         <span className="text-yellow-400/60 text-sm">⬥</span>
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-500/50 to-transparent" />
       </div>
 
-      {/* Body */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-12 gap-5" style={{ textAlign: align }}>
         <p style={{ fontSize: `${bodySize}px`, color: 'rgba(245,213,114,0.7)', letterSpacing: '0.2em', fontStyle: 'italic' }}>
           This is to Certify that
         </p>
-
         <div className="relative px-8 py-2">
-          <h2
-            style={{
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontSize: `${bodySize * 3.2}px`,
-              background: !data.styles.recipientColor ? 'linear-gradient(135deg, #f5d572 0%, #e8b84b 50%, #f5d572 100%)' : undefined,
-              WebkitBackgroundClip: !data.styles.recipientColor ? 'text' : undefined,
-              WebkitTextFillColor: !data.styles.recipientColor ? 'transparent' : undefined,
-              color: data.styles.recipientColor || undefined,
-              lineHeight: 1.1,
-              letterSpacing: `${spacing}px`,
-              ...fStyle(data, 'recipientName'),
-            }}
-          >
-            {data.recipientName}
+          <h2 style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: `${bodySize * 3.2}px`,
+            background: !data.styles.recipientColor ? 'linear-gradient(135deg, #f5d572 0%, #e8b84b 50%, #f5d572 100%)' : undefined,
+            WebkitBackgroundClip: !data.styles.recipientColor ? 'text' : undefined,
+            WebkitTextFillColor: !data.styles.recipientColor ? 'transparent' : undefined,
+            color: data.styles.recipientColor || undefined,
+            lineHeight: 1.1,
+            letterSpacing: `${spacing}px`,
+            ...fStyle(data, 'recipientName'),
+          }}>
+            {parseBold(data.recipientName)}
           </h2>
         </div>
-
         <div className="flex items-center gap-3 w-2/3">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent to-yellow-600/40" />
           <span className="text-yellow-500/50">◆</span>
           <div className="flex-1 h-px bg-gradient-to-l from-transparent to-yellow-600/40" />
         </div>
-
         <div className="space-y-3">
           <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || 'rgba(245,213,114,0.65)', letterSpacing: `${spacing * 0.5 + 1}px`, ...fStyle(data, 'completionText') }}>
-            {data.completionText || 'has demonstrated excellence in'}
+            {parseBold(data.completionText || 'has demonstrated excellence in')}
           </p>
-          <p style={{
-            fontSize: `${bodySize * 1.5}px`, fontWeight: 700,
-            color: data.styles.eventColor || '#f0c040',
-            letterSpacing: '0.1em',
-            fontFamily: "'Playfair Display', Georgia, serif",
-            ...fStyle(data, 'eventName'),
-          }}>
-            {data.eventName}
+          <p style={{ fontSize: `${bodySize * 1.5}px`, fontWeight: 700, color: data.styles.eventColor || '#f0c040', letterSpacing: '0.1em', fontFamily: "'Playfair Display', Georgia, serif", ...fStyle(data, 'eventName') }}>
+            {parseBold(data.eventName)}
           </p>
         </div>
-
-        <p style={{
-          fontSize: `${bodySize * 0.9}px`,
-          color: data.styles.descriptionColor || 'rgba(245,213,114,0.5)',
-          lineHeight: 1.8,
-          maxWidth: 680,
-          letterSpacing: `${spacing}px`,
-          ...fStyle(data, 'description'),
-        }}>
-          {data.description}
+        <p style={{ fontSize: `${bodySize * 0.9}px`, color: data.styles.descriptionColor || 'rgba(245,213,114,0.5)', lineHeight: 1.8, maxWidth: 680, letterSpacing: `${spacing}px`, ...fStyle(data, 'description') }}>
+          {parseBold(data.description)}
         </p>
-
         {data.uniqueId && (
           <p style={{ fontSize: `${bodySize * 0.85}px`, color: data.styles.idColor || 'rgba(245,213,114,0.6)', letterSpacing: '0.15em' }}>
             ID: <strong style={{ color: data.styles.idColor ? undefined : '#f5d572' }}>#{data.uniqueId}</strong>
@@ -417,18 +374,14 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
         )}
       </div>
 
-      {/* Gold separator */}
       <div className="relative z-10 mx-16 flex items-center gap-3 my-1">
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-500/40 to-transparent" />
         <span className="text-yellow-400/40 text-sm">⬥</span>
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yellow-500/40 to-transparent" />
       </div>
 
-      {/* Footer */}
       <div className="relative z-10 px-16 pb-10 flex items-end justify-between gap-10 w-full">
-        <div className="flex-1">
-          <SignaturesLayout signatures={data.signatures} color="gold" />
-        </div>
+        <div className="flex-1"><SignaturesLayout signatures={data.signatures} color="gold" /></div>
         {data.qrCodeValue && (
           <div className="flex flex-col items-center gap-1 shrink-0">
             <QRCodeSVG value={data.qrCodeValue} size={68} fgColor="#d4af37" bgColor="transparent" />
@@ -456,57 +409,36 @@ const CustomTemplate: React.FC<Props> = ({ data }) => {
         : <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-sky-50 to-indigo-100" />
       }
       <div className="absolute inset-0 bg-white/10" />
-
       <div className="relative z-10 flex flex-col h-full px-16 py-10 gap-3" style={{ fontFamily: bodyFont }}>
-        {/* Header */}
         <div className="flex items-center justify-between">
           <LogoBox src={data.leftLogo} label="Logo" />
           <div className="flex flex-col items-center">
-            {data.departmentName && (
-              <div
-                className="text-xs font-bold tracking-widest text-gray-500 uppercase mb-1 whitespace-pre-line text-center leading-relaxed"
-                style={fStyle(data, 'departmentName')}
-              >
-                {data.departmentName}
+            {(data.departmentName || data.departmentName2) && (
+              <div className="text-xs font-bold tracking-widest text-gray-500 uppercase mb-1 text-center leading-relaxed">
+                {data.departmentName && <div style={fStyle(data, 'departmentName')}>{parseBold(data.departmentName)}</div>}
+                {data.departmentName2 && <div style={fStyle(data, 'departmentName2')}>{parseBold(data.departmentName2)}</div>}
               </div>
             )}
-            <h1
-              className="text-center font-bold"
-              style={{
-                fontSize: `${bodySize * 2}px`,
-                letterSpacing: `${spacing}px`,
-                color: data.styles.titleColor || '#1e293b',
-                ...fStyle(data, 'title'),
-              }}
-            >
-              {data.title}
+            <h1 className="text-center font-bold" style={{ fontSize: `${bodySize * 2}px`, letterSpacing: `${spacing}px`, color: data.styles.titleColor || '#1e293b', ...fStyle(data, 'title') }}>
+              {parseBold(data.title)}
             </h1>
           </div>
           <LogoBox src={data.rightLogo} label="Logo" />
         </div>
 
-        {/* Body */}
         <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ textAlign: align }}>
-          <p style={{ fontSize: `${bodySize}px`, letterSpacing: `${spacing}px`, color: '#4b5563' }}>
-            This is to certify that
-          </p>
-          <h2 style={{
-            fontFamily: "'Dancing Script', cursive",
-            fontSize: `${bodySize * 3.2}px`,
-            color: data.styles.recipientColor || '#1e3a8a',
-            lineHeight: 1,
-            ...fStyle(data, 'recipientName'),
-          }}>
-            {data.recipientName}
+          <p style={{ fontSize: `${bodySize}px`, letterSpacing: `${spacing}px`, color: '#4b5563' }}>This is to certify that</p>
+          <h2 style={{ fontFamily: "'Dancing Script', cursive", fontSize: `${bodySize * 3.2}px`, color: data.styles.recipientColor || '#1e3a8a', lineHeight: 1, ...fStyle(data, 'recipientName') }}>
+            {parseBold(data.recipientName)}
           </h2>
           <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || '#6b7280', letterSpacing: `${spacing}px`, ...fStyle(data, 'completionText') }}>
-            {data.completionText || 'has successfully completed'}
+            {parseBold(data.completionText || 'has successfully completed')}
           </p>
           <p style={{ fontSize: `${bodySize * 1.5}px`, fontWeight: 700, color: data.styles.eventColor || '#1e293b', letterSpacing: `${spacing}px`, ...fStyle(data, 'eventName') }}>
-            {data.eventName}
+            {parseBold(data.eventName)}
           </p>
           <p style={{ fontSize: `${bodySize * 0.9}px`, color: data.styles.descriptionColor || '#9ca3af', lineHeight: 1.7, maxWidth: 680, letterSpacing: `${spacing}px`, ...fStyle(data, 'description') }}>
-            {data.description}
+            {parseBold(data.description)}
           </p>
           {data.uniqueId && (
             <p style={{ fontSize: `${bodySize * 0.85}px`, color: data.styles.idColor || '#6b7280' }}>
@@ -516,12 +448,8 @@ const CustomTemplate: React.FC<Props> = ({ data }) => {
         </div>
 
         <hr className="border-gray-400/30" />
-
-        {/* Footer */}
         <div className="flex items-end justify-between gap-10 w-full">
-          <div className="flex-1">
-            <SignaturesLayout signatures={data.signatures} />
-          </div>
+          <div className="flex-1"><SignaturesLayout signatures={data.signatures} /></div>
           {data.qrCodeValue && (
             <div className="flex flex-col items-center gap-1 shrink-0">
               <QRCodeSVG value={data.qrCodeValue} size={68} />
@@ -537,19 +465,11 @@ const CustomTemplate: React.FC<Props> = ({ data }) => {
 /* ══════════════════════════════════════════════════════════════
    SHARED SUB-COMPONENTS
 ══════════════════════════════════════════════════════════════ */
-const LogoBox = ({
-  src, label, small = false, dark = false
-}: { src: string | null; label: string; small?: boolean; dark?: boolean }) => (
-  <div
-    className="flex items-center justify-center rounded-xl overflow-hidden"
-    style={{ width: small ? 64 : 96, height: small ? 64 : 96 }}
-  >
+const LogoBox = ({ src, label, small = false, dark = false }: { src: string | null; label: string; small?: boolean; dark?: boolean }) => (
+  <div className="flex items-center justify-center rounded-xl overflow-hidden" style={{ width: small ? 64 : 96, height: small ? 64 : 96 }}>
     {src
       ? <img src={src} className="w-full h-full object-contain" alt={label} />
-      : <div className={[
-        'w-full h-full flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed',
-        dark ? 'border-yellow-500/20 text-yellow-500/20' : 'border-gray-300 text-gray-300'
-      ].join(' ')}>
+      : <div className={['w-full h-full flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed', dark ? 'border-yellow-500/20 text-yellow-500/20' : 'border-gray-300 text-gray-300'].join(' ')}>
         <span className="text-xl">🏫</span>
         <span className="text-[9px] font-medium">{label}</span>
       </div>
@@ -557,16 +477,10 @@ const LogoBox = ({
   </div>
 );
 
-const SignatureBlock = ({
-  sig, color = 'default'
-}: {
-  sig: { id: string; name: string; designation: string; image: string | null };
-  color?: 'default' | 'indigo' | 'gold';
-}) => {
+const SignatureBlock = ({ sig, color = 'default' }: { sig: { id: string; name: string; designation: string; image: string | null }; color?: 'default' | 'indigo' | 'gold' }) => {
   const nameColor = color === 'gold' ? '#f5d572' : color === 'indigo' ? '#4f46e5' : '#1e293b';
   const desigColor = color === 'gold' ? 'rgba(245,213,114,0.5)' : color === 'indigo' ? '#94a3b8' : '#94a3b8';
   const lineColor = color === 'gold' ? 'rgba(245,213,114,0.3)' : color === 'indigo' ? '#e0e7ff' : '#e2e8f0';
-
   return (
     <div className="flex flex-col items-center" style={{ minWidth: 110, maxWidth: 180 }}>
       <div className="h-14 flex items-end justify-center mb-2">
@@ -576,60 +490,19 @@ const SignatureBlock = ({
         }
       </div>
       <div className="w-full border-t pt-1.5 text-center" style={{ borderColor: lineColor }}>
-        <p className="text-sm font-bold leading-tight" style={{ color: nameColor }}>
-          {sig.name || '—'}
-        </p>
-        <p className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: desigColor }}>
-          {sig.designation || 'Signature'}
-        </p>
+        <p className="text-sm font-bold leading-tight" style={{ color: nameColor }}>{sig.name || '—'}</p>
+        <p className="text-[10px] uppercase tracking-widest mt-0.5" style={{ color: desigColor }}>{sig.designation || 'Signature'}</p>
       </div>
     </div>
   );
 };
 
-const SignaturesLayout = ({
-  signatures,
-  color = 'default'
-}: {
-  signatures: { id: string; name: string; designation: string; image: string | null }[];
-  color?: 'default' | 'indigo' | 'gold';
-}) => {
+const SignaturesLayout = ({ signatures, color = 'default' }: { signatures: { id: string; name: string; designation: string; image: string | null }[]; color?: 'default' | 'indigo' | 'gold' }) => {
   if (signatures.length === 0) return null;
-
-  if (signatures.length === 1) {
-    return (
-      <div className="flex">
-        <SignatureBlock sig={signatures[0]} color={color} />
-      </div>
-    );
-  }
-
-  if (signatures.length === 2) {
-    return (
-      <div className="flex justify-between w-full gap-8">
-        <SignatureBlock sig={signatures[0]} color={color} />
-        <SignatureBlock sig={signatures[1]} color={color} />
-      </div>
-    );
-  }
-
-  if (signatures.length === 3) {
-    return (
-      <div className="flex justify-between w-full gap-8">
-        <SignatureBlock sig={signatures[0]} color={color} />
-        <SignatureBlock sig={signatures[2]} color={color} />
-        <SignatureBlock sig={signatures[1]} color={color} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex justify-between w-full gap-4">
-      {signatures.map((sig) => (
-        <SignatureBlock key={sig.id} sig={sig} color={color} />
-      ))}
-    </div>
-  );
+  if (signatures.length === 1) return <div className="flex"><SignatureBlock sig={signatures[0]} color={color} /></div>;
+  if (signatures.length === 2) return <div className="flex justify-between w-full gap-8"><SignatureBlock sig={signatures[0]} color={color} /><SignatureBlock sig={signatures[1]} color={color} /></div>;
+  if (signatures.length === 3) return <div className="flex justify-between w-full gap-8"><SignatureBlock sig={signatures[0]} color={color} /><SignatureBlock sig={signatures[2]} color={color} /><SignatureBlock sig={signatures[1]} color={color} /></div>;
+  return <div className="flex justify-between w-full gap-4">{signatures.map(sig => <SignatureBlock key={sig.id} sig={sig} color={color} />)}</div>;
 };
 
 /* ══════════════════════════════════════════════════════════════

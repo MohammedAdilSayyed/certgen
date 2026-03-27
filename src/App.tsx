@@ -199,11 +199,10 @@ const FieldControls = ({
 }) => {
   const [open, setOpen] = useState(false);
   const fs = fieldStyles?.[fieldKey] ?? {};
-  const isBold = !!fs.bold;
   const fontSize = fs.fontSize ?? '';
   const x = fs.x ?? 0;
   const y = fs.y ?? 0;
-  const hasOverrides = isBold || !!fs.fontSize || !!fs.x || !!fs.y;
+  const hasOverrides = !!fs.fontSize || !!fs.x || !!fs.y;
 
   return (
     <div className="mt-1">
@@ -223,22 +222,12 @@ const FieldControls = ({
 
       {open && (
         <div className="mt-2 p-3 rounded-xl border border-indigo-100 bg-indigo-50/60 space-y-3">
-          {/* Bold toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => onChange(fieldKey, { bold: !isBold })}
-              title="Toggle Bold (Ctrl+B)"
-              className={[
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition',
-                isBold
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                  : 'border-gray-300 text-gray-600 hover:border-indigo-400 hover:text-indigo-600'
-              ].join(' ')}
-            >
-              <Bold className="w-3.5 h-3.5" /> Bold
-            </button>
-            <span className="text-[10px] text-gray-400">or press Ctrl+B in the field</span>
+          {/* Bold hint */}
+          <div className="flex items-center gap-2 px-1 py-1.5 rounded-lg bg-indigo-100/60 border border-indigo-200">
+            <Bold className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+            <span className="text-[11px] text-indigo-700 leading-snug">
+              <strong>Select words</strong> in the field, then press <kbd className="bg-white border border-indigo-200 rounded px-1 text-[10px] font-mono">Ctrl+B</kbd> to bold them on the certificate.
+            </span>
           </div>
 
           {/* Font size */}
@@ -361,10 +350,26 @@ export default function App() {
         },
       },
     }));
-  const handleCtrlB = (fieldKey: string) => (e: React.KeyboardEvent) => {
+  /** Ctrl+B: wraps the selected text in the input with **...** markers for inline bold */
+  const handleCtrlB = (
+    value: string,
+    onChange: (v: string) => void
+  ) => (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
       e.preventDefault();
-      setFieldStyle(fieldKey, { bold: !data.styles.fieldStyles?.[fieldKey]?.bold });
+      const el = e.currentTarget;
+      const start = el.selectionStart ?? 0;
+      const end = el.selectionEnd ?? 0;
+      if (start === end) return; // nothing selected
+      const selected = value.slice(start, end);
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+      // Toggle: unwrap ** if already wrapped
+      if (selected.startsWith('**') && selected.endsWith('**') && selected.length > 4) {
+        onChange(before + selected.slice(2, -2) + after);
+      } else {
+        onChange(before + '**' + selected + '**' + after);
+      }
     }
   };
 
@@ -658,25 +663,32 @@ export default function App() {
             {/* ── CONTENT tab ── */}
             {activeTab === 'content' && (
               <>
-                <Field label="Department Name">
-                  <StyledTextarea
+                <Field label="Department — Line 1">
+                  <StyledInput
                     value={data.departmentName || ''}
                     onChange={e => set('departmentName', e.target.value)}
-                    onKeyDown={handleCtrlB('departmentName')}
-                    placeholder={'e.g. Department of\nComputer Science'}
-                    className="min-h-[70px] leading-snug"
-                    style={{ fontWeight: data.styles.fieldStyles?.departmentName?.bold ? 'bold' : undefined }}
+                    onKeyDown={handleCtrlB(data.departmentName || '', v => set('departmentName', v))}
+                    placeholder="e.g. Department of Computer Science"
                   />
                   <FieldControls fieldKey="departmentName" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
+                </Field>
+
+                <Field label="Department — Line 2">
+                  <StyledInput
+                    value={data.departmentName2 || ''}
+                    onChange={e => set('departmentName2', e.target.value)}
+                    onKeyDown={handleCtrlB(data.departmentName2 || '', v => set('departmentName2', v))}
+                    placeholder="e.g. Faculty of Engineering"
+                  />
+                  <FieldControls fieldKey="departmentName2" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
 
                 <Field label="Certificate Title">
                   <StyledInput
                     value={data.title}
                     onChange={e => set('title', e.target.value)}
-                    onKeyDown={handleCtrlB('title')}
+                    onKeyDown={handleCtrlB(data.title, v => set('title', v))}
                     placeholder="CERTIFICATE OF ACHIEVEMENT"
-                    style={{ fontWeight: data.styles.fieldStyles?.title?.bold ? 'bold' : undefined }}
                   />
                   <FieldControls fieldKey="title" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
@@ -685,9 +697,8 @@ export default function App() {
                   <StyledInput
                     value={data.recipientName}
                     onChange={e => set('recipientName', e.target.value)}
-                    onKeyDown={handleCtrlB('recipientName')}
+                    onKeyDown={handleCtrlB(data.recipientName, v => set('recipientName', v))}
                     placeholder="Full Name"
-                    style={{ fontWeight: data.styles.fieldStyles?.recipientName?.bold ? 'bold' : undefined }}
                   />
                   <FieldControls fieldKey="recipientName" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
@@ -696,9 +707,8 @@ export default function App() {
                   <StyledInput
                     value={data.eventName}
                     onChange={e => set('eventName', e.target.value)}
-                    onKeyDown={handleCtrlB('eventName')}
+                    onKeyDown={handleCtrlB(data.eventName, v => set('eventName', v))}
                     placeholder="Annual Leadership Summit"
-                    style={{ fontWeight: data.styles.fieldStyles?.eventName?.bold ? 'bold' : undefined }}
                   />
                   <FieldControls fieldKey="eventName" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
@@ -707,9 +717,8 @@ export default function App() {
                   <StyledInput
                     value={data.completionText || ''}
                     onChange={e => set('completionText', e.target.value)}
-                    onKeyDown={handleCtrlB('completionText')}
+                    onKeyDown={handleCtrlB(data.completionText || '', v => set('completionText', v))}
                     placeholder="in recognition of successful completion of"
-                    style={{ fontWeight: data.styles.fieldStyles?.completionText?.bold ? 'bold' : undefined }}
                   />
                   <FieldControls fieldKey="completionText" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
@@ -723,9 +732,8 @@ export default function App() {
                   <StyledTextarea
                     value={data.description}
                     onChange={e => set('description', e.target.value)}
-                    onKeyDown={handleCtrlB('description')}
+                    onKeyDown={handleCtrlB(data.description, v => set('description', v))}
                     placeholder="In recognition of outstanding achievement…"
-                    style={{ fontWeight: data.styles.fieldStyles?.description?.bold ? 'bold' : undefined }}
                   />
                   <FieldControls fieldKey="description" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
