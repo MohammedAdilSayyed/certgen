@@ -9,7 +9,8 @@ import { DEFAULT_CERTIFICATE_DATA } from '@/types/certificate';
 import type { CertificateData, Signature } from '@/types/certificate';
 import {
   Download, Plus, Trash2, Save, QrCode, FileUp,
-  GalleryHorizontalEnd, PaintBucket, Settings2, Upload, Edit2, Check, X
+  GalleryHorizontalEnd, PaintBucket, Settings2, Upload, Edit2, Check, X,
+  Bold, MoveHorizontal, MoveVertical, Type, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 /* ─────────── ScaledCertPreview: auto-scale cert canvas to fit ────── */
@@ -188,6 +189,115 @@ const ColorPickerField = ({ label, value, defaultColor, onChange }: { label: str
   </Field>
 );
 
+/* ── Per-field style controls (bold, font size, x/y offset) ── */
+const FieldControls = ({
+  fieldKey, fieldStyles, onChange
+}: {
+  fieldKey: string;
+  fieldStyles: CertificateData['styles']['fieldStyles'];
+  onChange: (key: string, patch: Record<string, any>) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const fs = fieldStyles?.[fieldKey] ?? {};
+  const isBold = !!fs.bold;
+  const fontSize = fs.fontSize ?? '';
+  const x = fs.x ?? 0;
+  const y = fs.y ?? 0;
+  const hasOverrides = isBold || !!fs.fontSize || !!fs.x || !!fs.y;
+
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen(p => !p)}
+        className={[
+          'flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-md border transition',
+          hasOverrides
+            ? 'border-indigo-300 bg-indigo-50 text-indigo-600'
+            : 'border-gray-200 text-gray-400 hover:text-indigo-500 hover:border-indigo-300'
+        ].join(' ')}
+      >
+        {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        Field Options {hasOverrides ? '●' : ''}
+      </button>
+
+      {open && (
+        <div className="mt-2 p-3 rounded-xl border border-indigo-100 bg-indigo-50/60 space-y-3">
+          {/* Bold toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => onChange(fieldKey, { bold: !isBold })}
+              title="Toggle Bold (Ctrl+B)"
+              className={[
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition',
+                isBold
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                  : 'border-gray-300 text-gray-600 hover:border-indigo-400 hover:text-indigo-600'
+              ].join(' ')}
+            >
+              <Bold className="w-3.5 h-3.5" /> Bold
+            </button>
+            <span className="text-[10px] text-gray-400">or press Ctrl+B in the field</span>
+          </div>
+
+          {/* Font size */}
+          <div className="flex items-center gap-2">
+            <Type className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="text-xs text-gray-600 w-20 shrink-0">Font size</span>
+            <input
+              type="number"
+              min={8} max={120} step={1}
+              value={fontSize}
+              placeholder="auto"
+              onChange={e => onChange(fieldKey, { fontSize: e.target.value ? +e.target.value : undefined })}
+              className="w-20 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+            />
+            <span className="text-[10px] text-gray-400">px</span>
+            {fs.fontSize && (
+              <button
+                type="button"
+                onClick={() => onChange(fieldKey, { fontSize: undefined })}
+                className="text-[10px] text-red-400 hover:text-red-600 ml-1"
+              >reset</button>
+            )}
+          </div>
+
+          {/* X offset */}
+          <div className="flex items-center gap-2">
+            <MoveHorizontal className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="text-xs text-gray-600 w-20 shrink-0">X offset</span>
+            <input
+              type="range" min={-200} max={200} step={1} value={x}
+              onChange={e => onChange(fieldKey, { x: +e.target.value })}
+              className="flex-1 accent-indigo-600"
+            />
+            <span className="text-xs text-indigo-600 w-10 text-right">{x}px</span>
+            {x !== 0 && (
+              <button type="button" onClick={() => onChange(fieldKey, { x: 0 })} className="text-[10px] text-red-400 hover:text-red-600">↺</button>
+            )}
+          </div>
+
+          {/* Y offset */}
+          <div className="flex items-center gap-2">
+            <MoveVertical className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="text-xs text-gray-600 w-20 shrink-0">Y offset</span>
+            <input
+              type="range" min={-200} max={200} step={1} value={y}
+              onChange={e => onChange(fieldKey, { y: +e.target.value })}
+              className="flex-1 accent-indigo-600"
+            />
+            <span className="text-xs text-indigo-600 w-10 text-right">{y}px</span>
+            {y !== 0 && (
+              <button type="button" onClick={() => onChange(fieldKey, { y: 0 })} className="text-[10px] text-red-400 hover:text-red-600">↺</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SectionDivider = ({ title }: { title: string }) => (
   <div className="flex items-center gap-3 my-2">
     <div className="flex-1 h-px bg-gray-100" />
@@ -240,6 +350,23 @@ export default function App() {
     setData(prev => ({ ...prev, [field]: value }));
   const setStyle = (field: keyof CertificateData['styles'], value: any) =>
     setData(prev => ({ ...prev, styles: { ...prev.styles, [field]: value } }));
+  const setFieldStyle = (fieldKey: string, patch: Record<string, any>) =>
+    setData(prev => ({
+      ...prev,
+      styles: {
+        ...prev.styles,
+        fieldStyles: {
+          ...prev.styles.fieldStyles,
+          [fieldKey]: { ...(prev.styles.fieldStyles?.[fieldKey] ?? {}), ...patch },
+        },
+      },
+    }));
+  const handleCtrlB = (fieldKey: string) => (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+      e.preventDefault();
+      setFieldStyle(fieldKey, { bold: !data.styles.fieldStyles?.[fieldKey]?.bold });
+    }
+  };
 
   const readFile = (file: File): Promise<string> =>
     new Promise(res => {
@@ -532,35 +659,59 @@ export default function App() {
             {activeTab === 'content' && (
               <>
                 <Field label="Department Name">
-                  <StyledTextarea 
-                    value={data.departmentName || ''} 
+                  <StyledTextarea
+                    value={data.departmentName || ''}
                     onChange={e => set('departmentName', e.target.value)}
-                    placeholder={'e.g. Department of\nComputer Science'} 
+                    onKeyDown={handleCtrlB('departmentName')}
+                    placeholder={'e.g. Department of\nComputer Science'}
                     className="min-h-[70px] leading-snug"
+                    style={{ fontWeight: data.styles.fieldStyles?.departmentName?.bold ? 'bold' : undefined }}
                   />
+                  <FieldControls fieldKey="departmentName" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
 
                 <Field label="Certificate Title">
-                  <StyledInput value={data.title} onChange={e => set('title', e.target.value)}
-                    placeholder="CERTIFICATE OF ACHIEVEMENT" />
+                  <StyledInput
+                    value={data.title}
+                    onChange={e => set('title', e.target.value)}
+                    onKeyDown={handleCtrlB('title')}
+                    placeholder="CERTIFICATE OF ACHIEVEMENT"
+                    style={{ fontWeight: data.styles.fieldStyles?.title?.bold ? 'bold' : undefined }}
+                  />
+                  <FieldControls fieldKey="title" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
 
                 <Field label="Recipient Name">
-                  <StyledInput value={data.recipientName}
+                  <StyledInput
+                    value={data.recipientName}
                     onChange={e => set('recipientName', e.target.value)}
-                    placeholder="Full Name" />
+                    onKeyDown={handleCtrlB('recipientName')}
+                    placeholder="Full Name"
+                    style={{ fontWeight: data.styles.fieldStyles?.recipientName?.bold ? 'bold' : undefined }}
+                  />
+                  <FieldControls fieldKey="recipientName" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
 
                 <Field label="Event / Program Name">
-                  <StyledInput value={data.eventName}
+                  <StyledInput
+                    value={data.eventName}
                     onChange={e => set('eventName', e.target.value)}
-                    placeholder="Annual Leadership Summit" />
+                    onKeyDown={handleCtrlB('eventName')}
+                    placeholder="Annual Leadership Summit"
+                    style={{ fontWeight: data.styles.fieldStyles?.eventName?.bold ? 'bold' : undefined }}
+                  />
+                  <FieldControls fieldKey="eventName" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
 
                 <Field label="Completion Text">
-                  <StyledInput value={data.completionText || ''}
+                  <StyledInput
+                    value={data.completionText || ''}
                     onChange={e => set('completionText', e.target.value)}
-                    placeholder="in recognition of successful completion of" />
+                    onKeyDown={handleCtrlB('completionText')}
+                    placeholder="in recognition of successful completion of"
+                    style={{ fontWeight: data.styles.fieldStyles?.completionText?.bold ? 'bold' : undefined }}
+                  />
+                  <FieldControls fieldKey="completionText" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
 
                 <Field label="Certificate ID">
@@ -569,10 +720,14 @@ export default function App() {
                 </Field>
 
                 <Field label="Body Text / Description">
-                  <StyledTextarea value={data.description}
+                  <StyledTextarea
+                    value={data.description}
                     onChange={e => set('description', e.target.value)}
+                    onKeyDown={handleCtrlB('description')}
                     placeholder="In recognition of outstanding achievement…"
+                    style={{ fontWeight: data.styles.fieldStyles?.description?.bold ? 'bold' : undefined }}
                   />
+                  <FieldControls fieldKey="description" fieldStyles={data.styles.fieldStyles} onChange={setFieldStyle} />
                 </Field>
 
                 <SectionDivider title="Logos" />

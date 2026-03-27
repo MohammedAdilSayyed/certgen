@@ -14,6 +14,17 @@ const font = (family: string) => {
   }
 };
 
+/** Returns inline style overrides for a named field from fieldStyles */
+const fStyle = (data: CertificateData, key: string): React.CSSProperties => {
+  const fs = data.styles.fieldStyles?.[key];
+  if (!fs) return {};
+  return {
+    transform: (fs.x || fs.y) ? `translate(${fs.x ?? 0}px, ${fs.y ?? 0}px)` : undefined,
+    fontSize: fs.fontSize ? `${fs.fontSize}px` : undefined,
+    fontWeight: fs.bold ? 'bold' : undefined,
+  };
+};
+
 /* ══════════════════════════════════════════════════════════════
    CLASSIC FORMAL TEMPLATE
 ══════════════════════════════════════════════════════════════ */
@@ -41,13 +52,22 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
         <LogoBox src={data.leftLogo} label="Left Logo" />
         <div className="text-center flex-1 px-6">
           {data.departmentName && (
-            <div className="text-xs tracking-[0.3em] text-amber-800/80 font-bold uppercase mb-2 font-sans whitespace-pre-line">
+            <div
+              className="text-xs tracking-[0.3em] text-amber-800/80 font-bold uppercase mb-2 font-sans whitespace-pre-line"
+              style={fStyle(data, 'departmentName')}
+            >
               {data.departmentName}
             </div>
           )}
           <h1
             className="font-bold text-amber-900 leading-tight"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: `${bodySize * 2.2}px`, letterSpacing: `${spacing}px`, color: data.styles.titleColor || undefined }}
+            style={{
+              fontFamily: "'Playfair Display', Georgia, serif",
+              fontSize: `${bodySize * 2.2}px`,
+              letterSpacing: `${spacing}px`,
+              color: data.styles.titleColor || undefined,
+              ...fStyle(data, 'title'),
+            }}
           >
             {data.title}
           </h1>
@@ -68,25 +88,57 @@ const ClassicTemplate: React.FC<Props> = ({ data }) => {
 
         <div className="relative px-12 py-3">
           <h2
-            style={{ fontFamily: "'Dancing Script', cursive", fontSize: `${bodySize * 3.5}px`, color: data.styles.recipientColor || '#7c3d0a', lineHeight: 1.1 }}
+            style={{
+              fontFamily: "'Dancing Script', cursive",
+              fontSize: `${bodySize * 3.5}px`,
+              color: data.styles.recipientColor || '#7c3d0a',
+              lineHeight: 1.1,
+              ...fStyle(data, 'recipientName'),
+            }}
           >
             {data.recipientName}
           </h2>
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-0.5 bg-gradient-to-r from-transparent via-amber-800/40 to-transparent" />
         </div>
 
-        <p style={{ fontFamily: bodyFont, fontSize: `${bodySize}px`, letterSpacing: `${spacing}px`, color: data.styles.completionTextColor || '#5a4a2a', textAlign: align }}>
+        <p
+          style={{
+            fontFamily: bodyFont,
+            fontSize: `${bodySize}px`,
+            letterSpacing: `${spacing}px`,
+            color: data.styles.completionTextColor || '#5a4a2a',
+            textAlign: align,
+            ...fStyle(data, 'completionText'),
+          }}
+        >
           {data.completionText || 'in recognition of successful completion of'}
         </p>
 
         <p
-          style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: `${bodySize * 1.6}px`, color: data.styles.eventColor || '#5a3a0a', fontWeight: 'bold', letterSpacing: '0.1em', textAlign: align }}
+          style={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: `${bodySize * 1.6}px`,
+            color: data.styles.eventColor || '#5a3a0a',
+            fontWeight: 'bold',
+            letterSpacing: '0.1em',
+            textAlign: align,
+            ...fStyle(data, 'eventName'),
+          }}
         >
           {data.eventName}
         </p>
 
         <p
-          style={{ fontFamily: bodyFont, fontSize: `${bodySize * 0.95}px`, color: data.styles.descriptionColor || '#7a6a4a', maxWidth: '700px', lineHeight: 1.7, textAlign: align, letterSpacing: `${spacing}px` }}
+          style={{
+            fontFamily: bodyFont,
+            fontSize: `${bodySize * 0.95}px`,
+            color: data.styles.descriptionColor || '#7a6a4a',
+            maxWidth: '700px',
+            lineHeight: 1.7,
+            textAlign: align,
+            letterSpacing: `${spacing}px`,
+            ...fStyle(data, 'description'),
+          }}
         >
           {data.description}
         </p>
@@ -145,13 +197,22 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
         {/* Title */}
         <div style={{ textAlign: align }}>
           {data.departmentName && (
-            <div className="text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase mb-1 whitespace-pre-line leading-relaxed">
+            <div
+              className="text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase mb-1 whitespace-pre-line leading-relaxed"
+              style={fStyle(data, 'departmentName')}
+            >
               {data.departmentName}
             </div>
           )}
           <h1
             className="font-black text-gray-900 tracking-tight"
-            style={{ fontSize: `${bodySize * 2.1}px`, letterSpacing: `${spacing}px`, fontFamily: 'system-ui, sans-serif', color: data.styles.titleColor || undefined }}
+            style={{
+              fontSize: `${bodySize * 2.1}px`,
+              letterSpacing: `${spacing}px`,
+              fontFamily: 'system-ui, sans-serif',
+              color: data.styles.titleColor || undefined,
+              ...fStyle(data, 'title'),
+            }}
           >
             {data.title}
           </h1>
@@ -176,7 +237,8 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
                 backgroundImage: !data.styles.recipientColor ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' : undefined,
                 color: data.styles.recipientColor || undefined,
                 lineHeight: 1.1,
-                letterSpacing: `${spacing}px`
+                letterSpacing: `${spacing}px`,
+                ...fStyle(data, 'recipientName'),
               }}
             >
               {data.recipientName}
@@ -185,15 +247,15 @@ const ModernTemplate: React.FC<Props> = ({ data }) => {
           </div>
 
           <div className="space-y-2">
-            <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || '#64748b', letterSpacing: `${spacing}px` }}>
+            <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || '#64748b', letterSpacing: `${spacing}px`, ...fStyle(data, 'completionText') }}>
               {data.completionText || 'has successfully completed'}
             </p>
-            <p style={{ fontSize: `${bodySize * 1.5}px`, fontWeight: 800, color: data.styles.eventColor || '#1e293b', letterSpacing: `${spacing}px` }}>
+            <p style={{ fontSize: `${bodySize * 1.5}px`, fontWeight: 800, color: data.styles.eventColor || '#1e293b', letterSpacing: `${spacing}px`, ...fStyle(data, 'eventName') }}>
               {data.eventName}
             </p>
           </div>
 
-          <p style={{ fontSize: `${bodySize * 0.95}px`, color: data.styles.descriptionColor || '#94a3b8', lineHeight: 1.7, maxWidth: 680, letterSpacing: `${spacing}px`, margin: align === 'center' ? '0 auto' : undefined }}>
+          <p style={{ fontSize: `${bodySize * 0.95}px`, color: data.styles.descriptionColor || '#94a3b8', lineHeight: 1.7, maxWidth: 680, letterSpacing: `${spacing}px`, margin: align === 'center' ? '0 auto' : undefined, ...fStyle(data, 'description') }}>
             {data.description}
           </p>
 
@@ -259,7 +321,10 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
             <div className="h-px w-10 bg-yellow-500/50" />
           </div>
           {data.departmentName && (
-            <div className="text-xs font-bold tracking-[0.3em] text-yellow-500/90 uppercase mb-2 font-sans whitespace-pre-line leading-relaxed">
+            <div
+              className="text-xs font-bold tracking-[0.3em] text-yellow-500/90 uppercase mb-2 font-sans whitespace-pre-line leading-relaxed"
+              style={fStyle(data, 'departmentName')}
+            >
               {data.departmentName}
             </div>
           )}
@@ -272,7 +337,8 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
               background: !data.styles.titleColor ? 'linear-gradient(to bottom, #f5d572, #c8963a)' : undefined,
               WebkitBackgroundClip: !data.styles.titleColor ? 'text' : undefined,
               WebkitTextFillColor: !data.styles.titleColor ? 'transparent' : undefined,
-              color: data.styles.titleColor || undefined
+              color: data.styles.titleColor || undefined,
+              ...fStyle(data, 'title'),
             }}
           >
             {data.title}
@@ -304,7 +370,8 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
               WebkitTextFillColor: !data.styles.recipientColor ? 'transparent' : undefined,
               color: data.styles.recipientColor || undefined,
               lineHeight: 1.1,
-              letterSpacing: `${spacing}px`
+              letterSpacing: `${spacing}px`,
+              ...fStyle(data, 'recipientName'),
             }}
           >
             {data.recipientName}
@@ -318,14 +385,15 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
         </div>
 
         <div className="space-y-3">
-          <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || 'rgba(245,213,114,0.65)', letterSpacing: `${spacing * 0.5 + 1}px` }}>
+          <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || 'rgba(245,213,114,0.65)', letterSpacing: `${spacing * 0.5 + 1}px`, ...fStyle(data, 'completionText') }}>
             {data.completionText || 'has demonstrated excellence in'}
           </p>
           <p style={{
             fontSize: `${bodySize * 1.5}px`, fontWeight: 700,
             color: data.styles.eventColor || '#f0c040',
             letterSpacing: '0.1em',
-            fontFamily: "'Playfair Display', Georgia, serif"
+            fontFamily: "'Playfair Display', Georgia, serif",
+            ...fStyle(data, 'eventName'),
           }}>
             {data.eventName}
           </p>
@@ -336,7 +404,8 @@ const PremiumTemplate: React.FC<Props> = ({ data }) => {
           color: data.styles.descriptionColor || 'rgba(245,213,114,0.5)',
           lineHeight: 1.8,
           maxWidth: 680,
-          letterSpacing: `${spacing}px`
+          letterSpacing: `${spacing}px`,
+          ...fStyle(data, 'description'),
         }}>
           {data.description}
         </p>
@@ -394,21 +463,27 @@ const CustomTemplate: React.FC<Props> = ({ data }) => {
           <LogoBox src={data.leftLogo} label="Logo" />
           <div className="flex flex-col items-center">
             {data.departmentName && (
-              <div className="text-xs font-bold tracking-widest text-gray-500 uppercase mb-1 whitespace-pre-line text-center leading-relaxed">
+              <div
+                className="text-xs font-bold tracking-widest text-gray-500 uppercase mb-1 whitespace-pre-line text-center leading-relaxed"
+                style={fStyle(data, 'departmentName')}
+              >
                 {data.departmentName}
               </div>
             )}
             <h1
               className="text-center font-bold"
-              style={{ fontSize: `${bodySize * 2}px`, letterSpacing: `${spacing}px`, color: data.styles.titleColor || '#1e293b' }}
+              style={{
+                fontSize: `${bodySize * 2}px`,
+                letterSpacing: `${spacing}px`,
+                color: data.styles.titleColor || '#1e293b',
+                ...fStyle(data, 'title'),
+              }}
             >
               {data.title}
             </h1>
           </div>
           <LogoBox src={data.rightLogo} label="Logo" />
         </div>
-
-
 
         {/* Body */}
         <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ textAlign: align }}>
@@ -417,17 +492,20 @@ const CustomTemplate: React.FC<Props> = ({ data }) => {
           </p>
           <h2 style={{
             fontFamily: "'Dancing Script', cursive",
-            fontSize: `${bodySize * 3.2}px`, color: data.styles.recipientColor || '#1e3a8a', lineHeight: 1
+            fontSize: `${bodySize * 3.2}px`,
+            color: data.styles.recipientColor || '#1e3a8a',
+            lineHeight: 1,
+            ...fStyle(data, 'recipientName'),
           }}>
             {data.recipientName}
           </h2>
-          <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || '#6b7280', letterSpacing: `${spacing}px` }}>
+          <p style={{ fontSize: `${bodySize}px`, color: data.styles.completionTextColor || '#6b7280', letterSpacing: `${spacing}px`, ...fStyle(data, 'completionText') }}>
             {data.completionText || 'has successfully completed'}
           </p>
-          <p style={{ fontSize: `${bodySize * 1.5}px`, fontWeight: 700, color: data.styles.eventColor || '#1e293b', letterSpacing: `${spacing}px` }}>
+          <p style={{ fontSize: `${bodySize * 1.5}px`, fontWeight: 700, color: data.styles.eventColor || '#1e293b', letterSpacing: `${spacing}px`, ...fStyle(data, 'eventName') }}>
             {data.eventName}
           </p>
-          <p style={{ fontSize: `${bodySize * 0.9}px`, color: data.styles.descriptionColor || '#9ca3af', lineHeight: 1.7, maxWidth: 680, letterSpacing: `${spacing}px` }}>
+          <p style={{ fontSize: `${bodySize * 0.9}px`, color: data.styles.descriptionColor || '#9ca3af', lineHeight: 1.7, maxWidth: 680, letterSpacing: `${spacing}px`, ...fStyle(data, 'description') }}>
             {data.description}
           </p>
           {data.uniqueId && (

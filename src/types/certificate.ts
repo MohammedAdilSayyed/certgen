@@ -31,6 +31,7 @@ export interface CertificateData {
     idColor?: string;
     textAlign: 'left' | 'center' | 'right';
     spacing: number;
+    fieldStyles?: Record<string, { x?: number; y?: number; fontSize?: number; bold?: boolean }>;
   };
   qrCodeValue?: string;
   uniqueId?: string;
