@@ -69,29 +69,29 @@ const removeImageBackground = (dataUrl: string): Promise<string> => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(dataUrl);
-      
+
       canvas.width = img.width;
       canvas.height = img.height;
       ctx.drawImage(img, 0, 0);
-      
+
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
-      
+
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
         const a = data[i + 3];
-        
+
         if (a === 0) continue;
-        
+
         // Calculate brightness
         const brightness = (r + g + b) / 3;
-        
+
         // Define points for blending
-        const whitePoint = 210; 
-        const blackPoint = 120; 
-        
+        const whitePoint = 210;
+        const blackPoint = 120;
+
         if (brightness >= whitePoint) {
           data[i + 3] = 0; // Transparent
         } else if (brightness > blackPoint) {
@@ -100,7 +100,7 @@ const removeImageBackground = (dataUrl: string): Promise<string> => {
           data[i + 3] = a * factor;
         }
       }
-      
+
       ctx.putImageData(imgData, 0, 0);
       resolve(canvas.toDataURL('image/png'));
     };
@@ -326,9 +326,13 @@ export default function App() {
   const [exporting, setExporting] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportProgress, setExportProgress] = useState<string | null>(null);
+  const [exportProgressPercent, setExportProgressPercent] = useState<number>(0);
+  const [exportTotal, setExportTotal] = useState<number>(0);
+  const [exportCancelled, setExportCancelled] = useState(false);
   const [editingTemplateIndex, setEditingTemplateIndex] = useState<number | null>(null);
   const [tempTemplateName, setTempTemplateName] = useState('');
   const canvasRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const exportCancelledRef = useRef(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('cert_templates');
@@ -428,9 +432,9 @@ export default function App() {
       parent.style.height = '793px';
     }
 
-    const canvas = await html2canvas(el, { 
-      scale: 2, 
-      useCORS: true, 
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
       backgroundColor: '#ffffff',
       width: 1122,
       height: 793,
@@ -447,8 +451,8 @@ export default function App() {
   };
 
   const getValidRefs = () => {
-    const refs = bulkNames.length > 0 
-      ? canvasRefs.current.slice(0, bulkNames.length) 
+    const refs = bulkNames.length > 0
+      ? canvasRefs.current.slice(0, bulkNames.length)
       : [canvasRefs.current[0]];
     return refs.filter(Boolean) as HTMLDivElement[];
   };
@@ -456,44 +460,73 @@ export default function App() {
   const doExportPDF = async (type: 'single' | 'multiple') => {
     setShowExportModal(false);
     setExporting(true);
+    exportCancelledRef.current = false;
+    setExportCancelled(false);
     try {
       const els = getValidRefs();
       if (els.length === 0) throw new Error("No previews found.");
+
+      const total = els.length;
+      setExportTotal(total);
+      setExportProgressPercent(0);
 
       const eventNameStr = (data.eventName || 'Certificates').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-');
 
       if (type === 'single') {
         const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
         for (let i = 0; i < els.length; i++) {
-          setExportProgress(`Generating PDF page ${i + 1} of ${els.length}...`);
+          if (exportCancelledRef.current) {
+            setExportProgress('Export cancelled');
+            break;
+          }
+          const percent = ((i) / total) * 100;
+          setExportProgressPercent(percent);
+          setExportProgress(`Generating PDF page ${i + 1} of ${total}...`);
           if (i > 0) pdf.addPage();
           const canvas = await captureCanvas(els[i]);
           const imgData = canvas.toDataURL('image/png', 1.0);
           pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
         }
-        pdf.save(els.length > 1 ? `${eventNameStr}.pdf` : getSafeFileName('pdf'));
+        if (!exportCancelledRef.current) {
+          pdf.save(els.length > 1 ? `${eventNameStr}.pdf` : getSafeFileName('pdf'));
+        }
       } else {
         const zip = new JSZip();
         for (let i = 0; i < els.length; i++) {
-          setExportProgress(`Generating PDF ${i + 1} of ${els.length}...`);
+          if (exportCancelledRef.current) {
+            setExportProgress('Export cancelled');
+            break;
+          }
+          const percent = ((i) / total) * 100;
+          setExportProgressPercent(percent);
+          setExportProgress(`Generating PDF ${i + 1} of ${total}...`);
           const canvas = await captureCanvas(els[i]);
           const imgData = canvas.toDataURL('image/png', 1.0);
           const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
           pdf.addImage(imgData, 'PNG', 0, 0, 297, 210);
-          
+
           const name = (bulkNames[i] || 'Document').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-');
           zip.file(`${name}.pdf`, pdf.output('blob'));
         }
-        setExportProgress("Zipping files... please wait.");
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        saveAs(zipBlob, `${eventNameStr}_pdf.zip`);
+        if (!exportCancelledRef.current) {
+          setExportProgress("Zipping files... please wait.");
+          setExportProgressPercent(100);
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          saveAs(zipBlob, `${eventNameStr}_pdf.zip`);
+        }
       }
     } catch (e) {
       console.error("PDF Export failed:", e);
       alert("PDF Export failed.");
     } finally {
       setExporting(false);
-      setExportProgress(null);
+      setTimeout(() => {
+        setExportProgress(null);
+        setExportProgressPercent(0);
+        setExportTotal(0);
+        setExportCancelled(false);
+        exportCancelledRef.current = false;
+      }, 1000);
     }
   };
 
@@ -507,16 +540,28 @@ export default function App() {
 
   const exportPNG = async () => {
     setExporting(true);
+    exportCancelledRef.current = false;
+    setExportCancelled(false);
     try {
       const els = getValidRefs();
       if (els.length === 0) throw new Error("No previews found.");
+
+      const total = els.length;
+      setExportTotal(total);
+      setExportProgressPercent(0);
 
       const eventNameStr = (data.eventName || 'Certificates').replace(/[^a-zA-Z0-9\s]/g, '').trim().replace(/\s+/g, '-');
 
       if (bulkNames.length > 0) {
         const zip = new JSZip();
         for (let i = 0; i < els.length; i++) {
-          setExportProgress(`Generating PNG ${i + 1} of ${els.length}...`);
+          if (exportCancelledRef.current) {
+            setExportProgress('Export cancelled');
+            break;
+          }
+          const percent = ((i) / total) * 100;
+          setExportProgressPercent(percent);
+          setExportProgress(`Generating PNG ${i + 1} of ${total}...`);
           const canvas = await captureCanvas(els[i]);
           const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/png', 1.0));
           if (blob) {
@@ -524,9 +569,12 @@ export default function App() {
             zip.file(`${name}.png`, blob);
           }
         }
-        setExportProgress("Zipping files... please wait.");
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        saveAs(zipBlob, `${eventNameStr}_png.zip`);
+        if (!exportCancelledRef.current) {
+          setExportProgress("Zipping files... please wait.");
+          setExportProgressPercent(100);
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          saveAs(zipBlob, `${eventNameStr}_png.zip`);
+        }
       } else {
         const canvas = await captureCanvas(els[0]);
         canvas.toBlob((blob) => {
@@ -539,7 +587,13 @@ export default function App() {
       alert("PNG Export failed.");
     } finally {
       setExporting(false);
-      setExportProgress(null);
+      setTimeout(() => {
+        setExportProgress(null);
+        setExportProgressPercent(0);
+        setExportTotal(0);
+        setExportCancelled(false);
+        exportCancelledRef.current = false;
+      }, 1000);
     }
   };
 
@@ -579,18 +633,18 @@ export default function App() {
     const workbook = XLSX.read(buffer);
     const worksheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[worksheetName];
-    
+
     // Parse to array of arrays
     const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-    
+
     const names: string[] = [];
     for (let i = 0; i < json.length; i++) {
-        const row = json[i] as any[];
-        if (row && row.length > 0 && typeof row[0] === 'string' && row[0].trim() !== '') {
-            const val = row[0].trim();
-            if (i === 0 && val.toLowerCase() === 'name') continue; // Skip header
-            names.push(val);
-        }
+      const row = json[i] as any[];
+      if (row && row.length > 0 && typeof row[0] === 'string' && row[0].trim() !== '') {
+        const val = row[0].trim();
+        if (i === 0 && val.toLowerCase() === 'name') continue; // Skip header
+        names.push(val);
+      }
     }
 
     if (names.length > 0) {
@@ -987,25 +1041,60 @@ export default function App() {
             {bulkNames.length > 0 ? (
               bulkNames.map((name, index) => (
                 <div key={index} className="w-full shrink-0 shadow-lg" style={{ maxWidth: '100%', aspectRatio: '1122/793' }}>
-                  <ScaledCertPreview canvasRef={(el) => { canvasRefs.current[index] = el }} data={{...data, recipientName: name}} />
+                  <ScaledCertPreview canvasRef={(el) => { canvasRefs.current[index] = el }} data={{ ...data, recipientName: name }} />
                 </div>
               ))
             ) : (
-                <div className="w-full shrink-0 shadow-lg" style={{ maxWidth: '100%', aspectRatio: '1122/793' }}>
-                  <ScaledCertPreview canvasRef={(el) => { canvasRefs.current[0] = el }} data={data} />
-                </div>
+              <div className="w-full shrink-0 shadow-lg" style={{ maxWidth: '100%', aspectRatio: '1122/793' }}>
+                <ScaledCertPreview canvasRef={(el) => { canvasRefs.current[0] = el }} data={data} />
+              </div>
             )}
           </div>
         </main>
 
       </div>
 
-      {/* Export Progress Overlay */}
-      {exportProgress && (
+      {/* Export Progress Overlay with Progress Bar */}
+      {(exporting || exportProgress) && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center pointer-events-none">
-          <div className="bg-white rounded-xl p-6 shadow-2xl border border-gray-100 flex flex-col items-center gap-3">
+          <div className="bg-white rounded-xl p-6 shadow-2xl border border-gray-100 flex flex-col items-center gap-4 min-w-[320px] pointer-events-auto">
             <div className="w-8 h-8 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin" />
-            <p className="font-semibold text-gray-800">{exportProgress}</p>
+            <p className="font-semibold text-gray-800 text-center">{exportProgress || 'Preparing export...'}</p>
+
+            {/* Progress Bar */}
+            {exportTotal > 0 && (
+              <div className="w-full space-y-2">
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Progress</span>
+                  <span>{Math.round(exportProgressPercent)}%</span>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-600 transition-all duration-300"
+                    style={{ width: `${exportProgressPercent}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 text-center">
+                  {exportProgressPercent < 100 && !exportCancelled
+                    ? `${Math.round(exportProgressPercent)}% complete — ${exportTotal - Math.round((exportProgressPercent / 100) * exportTotal)} remaining`
+                    : exportCancelled
+                      ? 'Cancelled'
+                      : 'Completing...'}
+                </p>
+              </div>
+            )}
+
+            {/* Cancel Button */}
+            <button
+              onClick={() => {
+                exportCancelledRef.current = true;
+                setExportCancelled(true);
+              }}
+              disabled={!exporting || exportProgressPercent >= 100}
+              className="px-6 py-2 rounded-lg text-sm font-semibold bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel Export
+            </button>
           </div>
         </div>
       )}
@@ -1016,9 +1105,9 @@ export default function App() {
           <div className="bg-white rounded-2xl p-6 shadow-2xl max-w-sm w-full mx-4 transition-all">
             <h3 className="text-xl font-bold text-gray-900 mb-2">Bulk PDF Export</h3>
             <p className="text-sm text-gray-500 mb-6">You have <strong>{bulkNames.length}</strong> certificates ready. How would you like to download them?</p>
-            
+
             <div className="space-y-3">
-              <button 
+              <button
                 onClick={() => doExportPDF('single')}
                 className="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition text-left group"
               >
@@ -1031,7 +1120,7 @@ export default function App() {
                 </div>
               </button>
 
-              <button 
+              <button
                 onClick={() => doExportPDF('multiple')}
                 className="w-full flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition text-left group"
               >
@@ -1044,8 +1133,8 @@ export default function App() {
                 </div>
               </button>
             </div>
-            
-            <button 
+
+            <button
               onClick={() => setShowExportModal(false)}
               className="mt-6 w-full py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
             >
